@@ -47,3 +47,13 @@ SweetAlert2 é encapsulado em `services/notificationService.ts`. Use `notificati
 Os toasts aparecem no canto superior direito, têm botão de fechar e barra de progresso. Fecham em 4,5 segundos (erros: 8 segundos); o contador pausa ao passar o mouse ou focar a notificação. Mensagens são exibidas como texto. Preferências de movimento reduzido são respeitadas.
 
 O AuthProvider notifica sucesso/erro de login e cadastro e informa o logout. Erros continuam sendo propagados para os formulários manterem sua mensagem junto aos campos, sem disparar um segundo toast. A confirmação de senha divergente gera aviso. O hook do dashboard notifica falhas de consulta; requisições canceladas não geram alertas.
+
+## VLibras
+
+O widget oficial do VLibras é carregado uma vez pelo `index.html`, fora da raiz do React, e fica disponível em todas as rotas. O script usa `defer` e inicializa automaticamente, conforme a documentação atual; não adicione uma segunda chamada a `new VLibras.Widget()`.
+
+A integração depende de acesso a `https://vlibras.gov.br`. Não exige mudanças no CORS da API. Caso a hospedagem aplique CSP, permita o script oficial e consulte as origens necessárias para frames e fontes na documentação.
+
+Verificação manual: abra o login, acione o botão do VLibras na lateral e selecione um texto para traduzir. Navegue ao cadastro e ao dashboard e confirme que o widget continua disponível, sem duplicar. Confira também em uma tela pequena.
+
+Referências: [integração oficial](https://www.vlibras.gov.br/doc/widget/installation/webpageintegration.html) e [CSP](https://vlibras.gov.br/doc/widget/installation/content-security-policy.html).
