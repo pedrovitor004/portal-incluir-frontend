@@ -1,3 +1,4 @@
+import { useAuth } from "../hooks/useAuth";
 import { useState, type ReactNode, type ComponentType } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 
@@ -19,6 +20,8 @@ type SidebarProps = {
   currentPath: string;
   onNavigate: () => void;
   onLogout: () => void;
+  collapsed?: boolean;
+  onToggle?: () => void;
 };
 
 type LayoutProps = {
@@ -251,6 +254,8 @@ function Sidebar({
   currentPath,
   onNavigate,
   onLogout,
+  collapsed = false,
+  onToggle,
 }: SidebarProps) {
   function isActive(path: string): boolean {
     return path === "/coordenador/dashboard"
@@ -259,10 +264,20 @@ function Sidebar({
   }
 
   return (
-    <aside className="flex h-dvh w-72 shrink-0 flex-col overflow-hidden bg-[#38a34a] text-white">
+    <aside className={`flex h-full shrink-0 flex-col overflow-hidden bg-primary text-white transition-[width] duration-200 motion-reduce:transition-none ${collapsed ? "w-18" : "w-56"}`}>
       {/* Menu: somente esta área rola quando necessário */}
+      {onToggle && (
+        <div className={`flex min-h-14 items-center px-4 ${collapsed ? "justify-center" : "justify-between"}`}>
+          {!collapsed && <span className="text-xs font-semibold text-white/80">Menu principal</span>}
+          <button type="button" onClick={onToggle} aria-label={collapsed ? "Expandir menu" : "Recolher menu"} title={collapsed ? "Expandir menu" : "Recolher menu"} aria-expanded={!collapsed} aria-controls="desktop-navigation" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-white transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${collapsed ? "rotate-180" : ""}`}>
+              <path d="m14 7-5 5 5 5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+      )}
       <nav
-        className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4"
+        className={`min-h-0 flex-1 space-y-1 overflow-y-auto px-4 pb-6 ${onToggle ? "pt-1" : "pt-6"}`}
         aria-label="Menu principal"
       >
         {menuItems.map((item) => {
@@ -275,35 +290,39 @@ function Sidebar({
               to={item.path}
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
-              className={`flex items-center gap-2 rounded-md px-2.5 py-2.5 text-sm font-medium transition ${
+              aria-label={item.label}
+              title={collapsed ? item.label : undefined}
+              className={`flex items-center gap-3 rounded-md px-2.5 py-2.5 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${collapsed ? "justify-center" : ""} ${
                 active
-                  ? "bg-[#55df70] text-[#174b29]"
+                  ? "bg-white/95 text-[#226b32] shadow-sm"
                   : "text-white hover:bg-white/10"
               }`}
             >
-              <Icon />
-              <span>{item.label}</span>
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center"><Icon className="h-4 w-4" /></span>
+              {!collapsed && <span>{item.label}</span>}
             </Link>
           );
         })}
       </nav>
 
       {/* Sair e logo permanecem na parte inferior */}
-      <div className="shrink-0 border-t border-white/20 px-3 pt-2 pb-3">
+      <div className="shrink-0 border-t border-white/20 px-4 pt-3 pb-3">
         <button
           type="button"
           onClick={onLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+          aria-label="Sair"
+          title={collapsed ? "Sair" : undefined}
+          className={`flex w-full items-center gap-3 rounded-md px-2.5 py-2.5 text-sm font-medium text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${collapsed ? "justify-center" : ""}`}
         >
-          <LogoutIcon />
-          <span>Sair</span>
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center"><LogoutIcon className="h-4 w-4" /></span>
+          {!collapsed && <span>Sair</span>}
         </button>
 
-        <div className="mt-2 flex items-center justify-center border-t border-white/20 pt-2">
+        <div className={`${collapsed ? "hidden" : "flex"} mt-2 items-center justify-center pt-4 pb-3`}>
           <img
             src={logoPortal}
             alt="Portal Incluir"
-            className="h-auto max-h-14 w-auto max-w-full object-contain"
+            className="h-auto max-h-20 w-auto max-w-full object-contain"
           />
         </div>
       </div>
@@ -311,8 +330,10 @@ function Sidebar({
   );
 }
 
-export default function Layout({ children }: LayoutProps) {
+export default function CoordenadorLayout({ children }: LayoutProps) {
+  const { usuario, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -321,60 +342,22 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   function handleLogout() {
+    logout();
     closeMobileMenu();
     navigate("/");
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-[#f3f6f1]">
-      {/* Sidebar fixa em telas grandes */}
-      <div className="hidden h-dvh shrink-0 lg:block">
-        <Sidebar
-          currentPath={location.pathname}
-          onNavigate={closeMobileMenu}
-          onLogout={handleLogout}
-        />
-      </div>
-
-      {/* Menu lateral em celulares */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            type="button"
-            aria-label="Fechar menu"
-            className="absolute inset-0 h-full w-full bg-black/50"
-            onClick={closeMobileMenu}
-          />
-
-          <div className="relative h-dvh w-72 max-w-[85vw] shadow-xl">
-            <button
-              type="button"
-              onClick={closeMobileMenu}
-              aria-label="Fechar menu"
-              className="absolute right-2 top-2 z-10 rounded-md p-2 text-white hover:bg-white/10"
-            >
-              <CloseIcon />
-            </button>
-
-            <Sidebar
-              currentPath={location.pathname}
-              onNavigate={closeMobileMenu}
-              onLogout={handleLogout}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Área principal: rolagem independente da sidebar */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
+    <div className="flex h-dvh flex-col overflow-hidden bg-[#f3f6f1]">
         <header className="sticky top-0 z-30 shrink-0 border-b border-[#dce5dc] bg-white px-4 py-2 sm:px-5">
           <div className="flex min-h-12 items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
-                onClick={() => setMobileOpen(true)}
-                aria-label="Abrir menu"
+                onClick={() => setMobileOpen(!mobileOpen)}
+                aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
                 aria-expanded={mobileOpen}
+                aria-controls="mobile-navigation"
                 className="rounded-md p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
               >
                 <MenuIcon />
@@ -394,10 +377,10 @@ export default function Layout({ children }: LayoutProps) {
                 />
 
                 <div className="hidden min-w-0 sm:block">
-                  <p className="text-sm font-bold text-[#38a34a]">
+                  <p className="text-sm font-bold text-primary">
                     IFPB Campus Monteiro
                   </p>
-                  <p className="text-[10px] text-[#38a34a]">
+                  <p className="text-[10px] text-primary">
                     Coordenação Local de Acessibilidade e Inclusão
                   </p>
                 </div>
@@ -408,23 +391,35 @@ export default function Layout({ children }: LayoutProps) {
               <div className="hidden text-right sm:block">
                 <p className="text-[10px] text-slate-500">Coordenador</p>
                 <p className="text-xs font-semibold text-slate-800">
-                  Luzia Nunes
+                  {usuario?.nome}
                 </p>
               </div>
 
               <div
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#e6f4e8] text-base font-bold text-[#176333]"
-                aria-label="Usuária Luzia Nunes"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#e6f4e8] text-base font-bold text-primary"
+                aria-label={usuario?.nome}
               >
-                LN
+                {usuario?.nome.split(" ").filter(Boolean).slice(0, 2).map(n => n[0]).join("")}
               </div>
             </div>
           </div>
         </header>
-
-        <main className="w-full min-w-0 flex-1 p-4 sm:p-5">
-          {children}
-        </main>
+      <div className="flex min-h-0 flex-1">
+        <div id="desktop-navigation" className="hidden shrink-0 lg:block">
+          <Sidebar currentPath={location.pathname} onNavigate={closeMobileMenu} onLogout={handleLogout} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+        </div>
+        {mobileOpen && (
+          <div id="mobile-navigation" className="fixed inset-0 z-50 lg:hidden">
+            <button type="button" aria-label="Fechar menu" className="absolute inset-0 bg-black/50" onClick={closeMobileMenu} />
+            <div className="relative h-dvh w-56 max-w-[85vw] shadow-xl">
+              <button type="button" onClick={closeMobileMenu} aria-label="Fechar menu" className="absolute right-2 top-1 rounded-md p-1 text-white hover:bg-white/10">
+                <CloseIcon />
+              </button>
+              <Sidebar currentPath={location.pathname} onNavigate={closeMobileMenu} onLogout={handleLogout} />
+            </div>
+          </div>
+        )}
+        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-8">{children}</main>
       </div>
     </div>
   );
