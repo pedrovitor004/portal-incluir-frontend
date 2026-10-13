@@ -1,9 +1,12 @@
+import { useDashboardCoordenador } from "../../hooks/useDashboardCoordenador";
 import { Link } from "react-router";
 
 type StatCard = {
   title: string;
   value: string;
   borderColor: string;
+  accent: string;
+  iconPath: string;
 };
 
 type Student = {
@@ -50,84 +53,30 @@ const statCards: StatCard[] = [
   {
     title: "Estudantes acompanhados",
     value: "128",
-    borderColor: "border-l-[#38a34a]",
+    borderColor: "border-l-primary",
+    accent: "bg-emerald-50 text-primary",
+    iconPath: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-4M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z",
   },
   {
     title: "Anamneses pendentes",
     value: "12",
     borderColor: "border-l-amber-500",
+    accent: "bg-amber-50 text-amber-600",
+    iconPath: "M9 4H5v17h14V4h-4M9 3h6v4H9ZM9 12h6M9 16h4",
   },
   {
     title: "PEIs em revisão",
     value: "8",
     borderColor: "border-l-sky-500",
+    accent: "bg-sky-50 text-sky-600",
+    iconPath: "M14 3H5v18h14V8ZM14 3v5h5M9 13h6M9 17h4",
   },
   {
     title: "Novos registros",
     value: "5",
     borderColor: "border-l-red-500",
-  },
-];
-
-const recentStudents: Student[] = [
-  {
-    id: 1,
-    name: "NomeTeste",
-    course: "CursoTeste",
-    badge1: "CategoriaTeste",
-    badge2: "StatusTeste",
-    highlighted: false,
-  },
-  {
-    id: 2,
-    name: "NomeTeste",
-    course: "CursoTeste",
-    badge1: "CategoriaTeste",
-    badge2: "StatusTeste",
-    highlighted: true,
-  },
-  {
-    id: 3,
-    name: "NomeTeste",
-    course: "CursoTeste",
-    badge1: "CategoriaTeste",
-    badge2: "StatusTeste",
-    highlighted: false,
-  },
-  {
-    id: 4,
-    name: "NomeTeste",
-    course: "CursoTeste",
-    badge1: "CategoriaTeste",
-    badge2: "StatusTeste",
-    highlighted: true,
-  },
-];
-
-const notifications: Notification[] = [
-  {
-    id: 1,
-    title: "NotificacaoTeste",
-    time: "HorarioTeste",
-    color: "bg-emerald-500",
-  },
-  {
-    id: 2,
-    title: "NotificacaoTeste",
-    time: "HorarioTeste",
-    color: "bg-sky-500",
-  },
-  {
-    id: 3,
-    title: "NotificacaoTeste",
-    time: "HorarioTeste",
-    color: "bg-amber-500",
-  },
-  {
-    id: 4,
-    title: "NotificacaoTeste",
-    time: "HorarioTeste",
-    color: "bg-red-500",
+    accent: "bg-red-50 text-red-500",
+    iconPath: "M12 8v8M8 12h8M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
   },
 ];
 
@@ -139,11 +88,17 @@ const institutionalResources = [
 ];
 
 export default function DashboardCoordenador() {
+  const { dados, erro, carregando, recarregar } = useDashboardCoordenador();
+  const valores = dados ? [dados.estudantesAtivos, dados.professoresAtivos, dados.planosAtivos, dados.planosArquivados] : [];
+  const titulos = ["Estudantes ativos na instituição", "Professores ativos", "Meus PEIs ativos", "Meus PEIs arquivados"];
+  const cards = statCards.map((card, i) => ({ ...card, title: titulos[i], value: dados ? String(valores[i]) : "—" }));
+  const recentStudents: Student[] = dados?.estudantesRecentes.map(e => ({ id: e.id, name: e.nome, course: e.curso, badge1: e.matricula, badge2: e.ativo ? "Ativo" : "Inativo", highlighted: false })) || [];
+  const notifications: Notification[] = [];
   return (
     <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-[1440px] flex-col gap-6">
       {/* Título */}
       <header>
-        <h1 className="text-2xl font-bold leading-tight text-[#185b32] sm:text-[28px]">
+        <h1 className="text-2xl font-bold leading-tight text-primary sm:text-[28px]">
           Início do coordenador
         </h1>
 
@@ -152,21 +107,29 @@ export default function DashboardCoordenador() {
         </p>
       </header>
 
+      {erro && <div role="alert" className="text-sm text-red-700">{erro} <button className="underline" onClick={recarregar}>Tentar novamente</button></div>}
+      {carregando && <p role="status">Carregando dashboard...</p>}
       {/* Indicadores */}
       <section
         className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
         aria-label="Indicadores do sistema"
       >
-        {statCards.map((card) => (
+        {cards.map((card) => (
           <article
             key={card.title}
-            className={`min-w-0 rounded-md border border-[#dce5dc] border-l-4 bg-white px-4 py-4 sm:p-5 ${card.borderColor}`}
+            className={`relative min-w-0 overflow-hidden rounded-2xl border border-[#dce5dc] border-l-4 bg-white p-5 shadow-[0_4px_20px_rgba(24,91,50,0.05)] sm:p-6 ${card.borderColor}`}
           >
+            <div className={`mb-5 flex h-11 w-11 items-center justify-center rounded-xl ${card.accent}`}>
+              <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d={card.iconPath} />
+              </svg>
+            </div>
+            <div aria-hidden="true" className={`pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-60 ${card.accent}`} />
             <h2 className="text-xs font-semibold leading-snug text-slate-600 sm:text-sm">
               {card.title}
             </h2>
 
-            <p className="mt-2 text-2xl font-bold leading-none text-[#26332b] sm:text-[28px]">
+            <p className="mt-3 text-3xl font-semibold leading-none tracking-tight text-[#26332b] tabular-nums sm:text-4xl">
               {card.value}
             </p>
           </article>
@@ -179,12 +142,12 @@ export default function DashboardCoordenador() {
         <section className="min-w-0 rounded-md border border-[#dce5dc] bg-white p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-1 pb-4">
             <h2 className="text-base font-bold text-[#26332b]">
-              Estudantes acompanhados recentemente
+              Últimos estudantes cadastrados na instituição
             </h2>
 
             <Link
               to="/coordenador/estudantes"
-              className="inline-flex shrink-0 items-center gap-2 rounded-md border border-[#dce5dc] px-3 py-2 text-xs font-semibold text-[#185b32] transition hover:bg-[#edf7ee] focus:outline-none focus:ring-2 focus:ring-[#38a34a]"
+              className="inline-flex shrink-0 items-center gap-2 rounded-md border border-[#dce5dc] px-3 py-2 text-xs font-semibold text-primary transition hover:bg-[#edf7ee] focus:outline-none focus:ring-2 focus:ring-primary"
             >
               Ver todos
               <GraduationCapIcon />
@@ -192,6 +155,7 @@ export default function DashboardCoordenador() {
           </div>
 
           <div className="mt-3 space-y-1">
+            {dados && recentStudents.length === 0 && <p className="p-3 text-sm text-slate-500">Nenhum estudante cadastrado.</p>}
             {recentStudents.map((student) => (
               <article
                 key={student.id}
@@ -208,7 +172,7 @@ export default function DashboardCoordenador() {
                 </p>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="max-w-full truncate rounded-full bg-[#e6f5e8] px-2.5 py-1 text-[10px] font-semibold text-[#185b32]">
+                  <span className="max-w-full truncate rounded-full bg-[#e6f5e8] px-2.5 py-1 text-[10px] font-semibold text-primary">
                     {student.badge1}
                   </span>
 
@@ -228,6 +192,7 @@ export default function DashboardCoordenador() {
           </h2>
 
           <div className="space-y-6 px-1 py-5">
+            <p className="text-sm text-slate-500">As notificações ainda não estão disponíveis.</p>
             {notifications.map((notification) => (
               <article
                 key={notification.id}
@@ -256,7 +221,7 @@ export default function DashboardCoordenador() {
       {/* Recursos institucionais: ficam no final quando há espaço */}
       <section className="mt-4 rounded-md border border-[#dce5dc] bg-white px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
-          <h2 className="shrink-0 text-sm font-bold text-[#185b32]">
+          <h2 className="shrink-0 text-sm font-bold text-primary">
             Recursos institucionais
           </h2>
 
@@ -264,7 +229,7 @@ export default function DashboardCoordenador() {
             {institutionalResources.map((resource) => (
               <span
                 key={resource}
-                className="rounded-md bg-[#e8f5e9] px-3.5 py-2 text-[11px] font-semibold text-[#185b32]"
+                className="rounded-md bg-[#e8f5e9] px-3.5 py-2 text-[11px] font-semibold text-primary"
               >
                 {resource}
               </span>
