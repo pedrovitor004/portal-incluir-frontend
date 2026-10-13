@@ -1,0 +1,44 @@
+import { notificationService } from "../services/notificationService";
+import { mensagemErro } from "../services/apiError";
+import { useState, type ReactNode } from "react";
+import { AuthContext } from "./AuthContext";
+import { authService } from "../services/authService";
+import { userSession } from "../services/sessionStorage";
+import type { CadastroRequest, LoginRequest, Usuario } from "../types/auth";
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [usuario, setUsuario] = useState<Usuario | null>(() => userSession.read());
+
+  function atualizarSessao(conta: Usuario) {
+    userSession.save(conta);
+    setUsuario(conta);
+    return conta;
+  }
+  async function login(request: LoginRequest) {
+    try {
+      const conta = atualizarSessao(await authService.login(request));
+      notificationService.success("Login realizado com sucesso!");
+      return conta;
+    } catch (error) {
+      notificationService.error(mensagemErro(error));
+      throw error;
+    }
+  }
+  async function register(request: CadastroRequest) {
+    try {
+      const conta = atualizarSessao(await authService.register(request));
+      notificationService.success("Conta criada com sucesso!");
+      return conta;
+    } catch (error) {
+      notificationService.error(mensagemErro(error));
+      throw error;
+    }
+  }
+  function logout() {
+    userSession.clear();
+    setUsuario(null);
+    notificationService.info("Você saiu da sua conta.");
+  }
+
+  return <AuthContext.Provider value={{ usuario, login, register, logout }}>{children}</AuthContext.Provider>;
+}

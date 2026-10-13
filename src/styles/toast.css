@@ -1,0 +1,26 @@
+.swal2-popup.portal-toast {
+  border: 1px solid #dce5dc;
+  border-radius: 0.875rem;
+  box-shadow: 0 8px 32px rgb(24 91 50 / 14%);
+  font-family: inherit;
+}
+
+.swal2-popup.portal-toast .portal-toast-title {
+  color: #26332b;
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .swal2-container.swal2-top-end {
+    padding: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-toast, .portal-toast * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
