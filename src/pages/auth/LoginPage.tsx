@@ -10,6 +10,7 @@ import { Link, useNavigate } from "react-router";
 import logoClai from "../../assets/logos/logo-clai.png";
 import logoIfpb from "../../assets/logos/logo-ifpb.png";
 import logoPortal from "../../assets/logos/logo-portal.png";
+import PasswordField from "../../components/PasswordField";
 
 function ArrowIcon() {
   return (
@@ -54,12 +55,12 @@ export default function LoginPage() {
           <img
             src={logoIfpb}
             alt="Instituto Federal da Paraíba"
-            className="h-12 w-auto object-contain"
+            className="h-14 w-auto object-contain sm:h-16"
           />
           <img
             src={logoClai}
             alt="Coordenação Local de Acessibilidade e Inclusão"
-            className="h-12 w-auto object-contain"
+            className="h-14 w-auto object-contain sm:h-16"
           />
 
           <div className="hidden flex-col leading-tight text-primary md:flex">
@@ -86,9 +87,9 @@ export default function LoginPage() {
               />
             </div>
 
-            <h1 className="mt-10 max-w-[390px] text-[34px] font-semibold leading-[1.1] tracking-tight">
+            <h2 className="mt-10 max-w-[390px] text-[34px] font-semibold leading-[1.1] tracking-tight">
               Bem-vindo ao Portal<br />Incluir!
-            </h1>
+            </h2>
 
             <p className="mt-9 max-w-[500px] text-lg font-normal leading-[1.4] text-white/90">
               Acompanhamento educacional em um ambiente simples, seguro e
@@ -130,14 +131,14 @@ export default function LoginPage() {
           <div className="w-full max-w-[430px]">
             <section className="flex flex-col rounded-2xl border border-emerald-100 bg-white p-6 shadow-[0_12px_40px_rgba(50,93,58,0.08)] sm:p-8">
               <div>
-                <h2 className="text-3xl font-bold tracking-tight text-primary">Entrar</h2>
+                <h1 data-page-title className="text-3xl font-bold tracking-tight text-primary">Entrar</h1>
                 <p className="mt-2 text-sm leading-relaxed text-slate-500">
                   Acesse sua conta institucional.
                 </p>
               </div>
 
-              <form onSubmit={entrar} className="mt-7 flex flex-col">
-                {erro && <p role="alert" className="mb-4 text-sm text-red-700">{erro}</p>}
+              <form onSubmit={entrar} aria-busy={enviando} aria-describedby={erro ? "login-error" : undefined} className="mt-7 flex flex-col">
+                {erro && <p id="login-error" role="alert" className="mb-4 text-sm text-red-700">{erro}</p>}
                 <div className="flex flex-col gap-5">
                   <label className="flex flex-col gap-2">
                     <span className="text-sm font-semibold text-primary">
@@ -152,18 +153,7 @@ export default function LoginPage() {
                     />
                   </label>
 
-                  <label className="flex flex-col gap-2">
-                    <span className="text-sm font-semibold text-primary">
-                      Senha
-                    </span>
-                    <input
-                      type="password"
-                      required name="password"
-                      autoComplete="current-password"
-                      placeholder="••••••••"
-                      className="h-12 w-full rounded-lg border border-emerald-300 bg-white px-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition hover:border-emerald-400 focus:border-primary focus:ring-4 focus:ring-emerald-100"
-                    />
-                  </label>
+                  <PasswordField name="password" label="Senha" autoComplete="current-password" placeholder="Sua senha" />
 
                   <div className="-mt-2 flex justify-end">
                     <button
@@ -189,13 +179,10 @@ export default function LoginPage() {
               </form>
             </section>
 
-            <div className="mt-5 px-1">
+            <div className="auth-footer mt-5 px-1">
               <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm font-medium leading-5 text-primary">
                 <button type="button" className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
                   Privacidade e LGPD
-                </button>
-                <button type="button" className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
-                  Acessibilidade
                 </button>
                 <Link to="/register" className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
                   Crie sua conta

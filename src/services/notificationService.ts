@@ -14,8 +14,9 @@ const toast = Swal.mixin({
 });
 
 function show(icon: SweetAlertIcon, message: string) {
+  window.dispatchEvent(new CustomEvent("portal:notice", { detail: { kind: icon, message } }));
   // titleText mantém mensagens vindas da API como texto, sem interpretar HTML.
-  void toast.fire({ icon, titleText: message, timer: icon === "error" ? 8000 : toastConfig.timer });
+  void toast.fire({ icon, titleText: message, timer: document.documentElement.dataset.persistentNotices === "true" ? 0 : icon === "error" ? 8000 : toastConfig.timer });
 }
 
 export const notificationService = {

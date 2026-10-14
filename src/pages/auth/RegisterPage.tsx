@@ -2,7 +2,6 @@ import logoAmarela from "../../assets/logos/amarela.png";
 import logoAzul from "../../assets/logos/azul.png";
 import logoVerde from "../../assets/logos/verde.png";
 import logoVermelha from "../../assets/logos/vermelha.png";
-import { notificationService } from "../../services/notificationService";
 import { useAuth } from "../../hooks/useAuth";
 import { destinoUsuario } from "../../config/routes";
 import { mensagemErro } from "../../services/apiError";
@@ -12,6 +11,7 @@ import { useState, type FormEvent } from "react";
 import logoClai from "../../assets/logos/logo-clai.png";
 import logoIfpb from "../../assets/logos/logo-ifpb.png";
 import logoPortal from "../../assets/logos/logo-portal.png";
+import PasswordField from "../../components/PasswordField";
 
 type BondType = "teacher" | "coordinator" | "multidisciplinary" | "admin";
 
@@ -120,7 +120,7 @@ function ArrowIcon() {
 function SectionTitle({ title, description }: { title: string; description: string }) {
   return (
     <div>
-      <h2 className="text-3xl font-bold tracking-tight text-primary">{title}</h2>
+      <h1 data-page-title className="text-3xl font-bold tracking-tight text-primary">{title}</h1>
       <p className="mt-1 text-sm leading-relaxed text-slate-500">{description}</p>
     </div>
   );
@@ -129,10 +129,11 @@ function SectionTitle({ title, description }: { title: string; description: stri
 function FormInput({ field }: { field: Field }) {
   return (
     <label className="flex min-w-0 flex-col gap-1">
-      <span className="text-xs font-medium text-primary">{field.label}</span>
+      <span className="text-xs font-medium text-primary">{field.label}{["telefone", "dataNascimento"].includes(field.name) ? " (opcional)" : " (obrigatório)"}</span>
       <input
         type={field.type}
         name={field.name}
+        autoComplete={({ nome: "name", email: "email", telefone: "tel", dataNascimento: "bday" } as Record<string, string>)[field.name]}
         required={field.name !== "telefone" && field.name !== "dataNascimento"}
         maxLength={field.name === "matricula" ? 30 : field.name === "telefone" ? 20 : field.name === "periodoIngresso" ? 20 : field.name === "areaAtuacao" ? 100 : ["nome", "email", "curso"].includes(field.name) ? 150 : 120}
         placeholder={field.placeholder}
@@ -154,7 +155,8 @@ export default function RegisterPage() {
     if (form.password !== form.confirmPassword) {
       const mensagem = "As senhas não coincidem.";
       setErro(mensagem);
-      notificationService.warning(mensagem);
+      setPasswordMismatch(true);
+      event.currentTarget.querySelector<HTMLInputElement>('[name="confirmPassword"]')?.focus();
       return;
     }
     const comum = {
@@ -178,6 +180,7 @@ export default function RegisterPage() {
     finally { setEnviando(false); }
   }
   const [bondType, setBondType] = useState<BondType>("teacher");
+  const [passwordMismatch, setPasswordMismatch] = useState(false);
 
   return (
     <main className="flex min-h-dvh flex-col bg-[#f3f5ef] text-slate-700">
@@ -186,12 +189,12 @@ export default function RegisterPage() {
           <img
             src={logoIfpb}
             alt="Instituto Federal da Paraíba"
-            className="h-12 w-auto object-contain"
+            className="h-14 w-auto object-contain sm:h-16"
           />
           <img
             src={logoClai}
             alt="Coordenação Local de Acessibilidade e Inclusão"
-            className="h-12 w-auto object-contain"
+            className="h-14 w-auto object-contain sm:h-16"
           />
 
           <div className="hidden flex-col leading-tight text-primary md:flex">
@@ -216,9 +219,9 @@ export default function RegisterPage() {
               />
             </div>
 
-            <h1 className="mt-10 max-w-[390px] text-[34px] font-semibold leading-[1.1] tracking-tight">
+            <h2 className="mt-10 max-w-[390px] text-[34px] font-semibold leading-[1.1] tracking-tight">
               Bem-vindo ao Portal<br />Incluir!
-            </h1>
+            </h2>
 
             <p className="mt-9 max-w-[500px] text-lg font-normal leading-[1.4] text-white/90">
               Acompanhamento educacional em um ambiente simples, seguro e
@@ -275,7 +278,7 @@ export default function RegisterPage() {
                           name="perfil"
                           value={option.value}
                           checked={bondType === option.value}
-                          onChange={() => { setBondType(option.value); setErro(""); }}
+                          onChange={() => { setBondType(option.value); setErro(""); setPasswordMismatch(false); }}
                           className="h-4 w-4 shrink-0 cursor-pointer accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                         />
                         <ProfileIcon type={option.value} />
@@ -285,8 +288,9 @@ export default function RegisterPage() {
                   </div>
                 </fieldset>
 
-                <form key={bondType} onSubmit={cadastrar} className="space-y-3">
-                  {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
+                <form key={bondType} onSubmit={cadastrar} aria-busy={enviando} aria-describedby={erro ? "register-error" : undefined} onInput={() => { if (passwordMismatch) { setPasswordMismatch(false); setErro(""); } }} className="space-y-3">
+                  <p id="password-hint" className="text-xs text-slate-600">Preencha os campos obrigatórios. A senha deve ter entre 6 e 72 caracteres.</p>
+                  {erro && <p id="register-error" role="alert" className="text-sm text-red-700">{erro}</p>}
                   <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
                     {formFieldsByType[bondType].map((field) => (
                       <FormInput key={field.name} field={field} />
@@ -294,27 +298,8 @@ export default function RegisterPage() {
                   </div>
 
                   <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
-                    <label className="flex min-w-0 flex-col gap-1">
-                      <span className="text-xs font-medium text-primary">Senha</span>
-                      <input
-                        type="password" required minLength={6} maxLength={72}
-                        autoComplete="new-password"
-                        name="password"
-                        placeholder="Crie uma senha"
-                        className="h-9 min-w-0 w-full rounded-lg border border-emerald-300 bg-white px-3 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition hover:border-emerald-400 focus:border-primary focus:ring-4 focus:ring-emerald-100"
-                      />
-                    </label>
-
-                    <label className="flex min-w-0 flex-col gap-1">
-                      <span className="text-xs font-medium text-primary">Confirmar senha</span>
-                      <input
-                        type="password" required minLength={6} maxLength={72}
-                        autoComplete="new-password"
-                        name="confirmPassword"
-                        placeholder="Repita a senha"
-                        className="h-9 min-w-0 w-full rounded-lg border border-emerald-300 bg-white px-3 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition hover:border-emerald-400 focus:border-primary focus:ring-4 focus:ring-emerald-100"
-                      />
-                    </label>
+                    <PasswordField name="password" label="Senha (obrigatória)" autoComplete="new-password" placeholder="Crie uma senha" describedBy="password-hint" />
+                    <PasswordField name="confirmPassword" label="Confirmar senha (obrigatório)" autoComplete="new-password" placeholder="Repita a senha" invalid={passwordMismatch} describedBy={passwordMismatch ? "password-hint register-error" : "password-hint"} />
                   </div>
 
                   <button
@@ -328,7 +313,7 @@ export default function RegisterPage() {
               </div>
             </section>
 
-            <div className="mt-5 px-1 text-center">
+            <div className="auth-footer mt-3 px-1 text-center">
               <p className="text-xs text-slate-500">
                 Ao criar a conta, você concorda com as orientações institucionais.
               </p>
@@ -337,9 +322,6 @@ export default function RegisterPage() {
                 <Link to="/" className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
                   Já tenho conta
                 </Link>
-                <button type="button" className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
-                  Acessibilidade
-                </button>
               </div>
             </div>
           </div>
