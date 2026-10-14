@@ -1,5 +1,5 @@
 import { useAuth } from "../hooks/useAuth";
-import { useState, type ReactNode, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ReactNode, type ComponentType } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 
 import logoClai from "../assets/logos/logo-clai.png";
@@ -336,6 +336,20 @@ export default function CoordenadorLayout({ children }: LayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const mobileDialog = useRef<HTMLDialogElement>(null);
+  const menuTrigger = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (mobileOpen) mobileDialog.current?.showModal();
+    else mobileDialog.current?.close();
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const closeOnDesktop = () => { if (media.matches) setMobileOpen(false); };
+    media.addEventListener("change", closeOnDesktop);
+    return () => media.removeEventListener("change", closeOnDesktop);
+  }, []);
 
   function closeMobileMenu() {
     setMobileOpen(false);
@@ -353,6 +367,7 @@ export default function CoordenadorLayout({ children }: LayoutProps) {
           <div className="flex min-h-12 items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
               <button
+                ref={menuTrigger}
                 type="button"
                 onClick={() => setMobileOpen(!mobileOpen)}
                 aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
@@ -367,13 +382,13 @@ export default function CoordenadorLayout({ children }: LayoutProps) {
                 <img
                   src={logoIfpb}
                   alt="IFPB"
-                  className="h-10 w-10 shrink-0 object-contain"
+                  className="h-14 w-12 shrink-0 object-contain"
                 />
 
                 <img
                   src={logoClai}
                   alt="CLAI"
-                  className="h-11 w-12 shrink-0 object-contain"
+                  className="h-14 w-14 shrink-0 object-contain"
                 />
 
                 <div className="hidden min-w-0 sm:block">
@@ -408,17 +423,15 @@ export default function CoordenadorLayout({ children }: LayoutProps) {
         <div id="desktop-navigation" className="hidden shrink-0 lg:block">
           <Sidebar currentPath={location.pathname} onNavigate={closeMobileMenu} onLogout={handleLogout} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
         </div>
-        {mobileOpen && (
-          <div id="mobile-navigation" className="fixed inset-0 z-50 lg:hidden">
-            <button type="button" aria-label="Fechar menu" className="absolute inset-0 bg-black/50" onClick={closeMobileMenu} />
+          <dialog ref={mobileDialog} id="mobile-navigation" aria-label="Menu principal" onCancel={closeMobileMenu} onClose={() => { closeMobileMenu(); menuTrigger.current?.focus(); }} className="mobile-menu-dialog">
+            <button type="button" aria-label="Fechar menu" tabIndex={-1} className="absolute inset-0 bg-black/50" onClick={closeMobileMenu} />
             <div className="relative h-dvh w-56 max-w-[85vw] shadow-xl">
               <button type="button" onClick={closeMobileMenu} aria-label="Fechar menu" className="absolute right-2 top-1 rounded-md p-1 text-white hover:bg-white/10">
                 <CloseIcon />
               </button>
               <Sidebar currentPath={location.pathname} onNavigate={closeMobileMenu} onLogout={handleLogout} />
             </div>
-          </div>
-        )}
+          </dialog>
         <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-8">{children}</main>
       </div>
     </div>
