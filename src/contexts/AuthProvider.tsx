@@ -55,5 +55,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     notificationService.info("Você saiu da sua conta.");
   }
 
-  return <AuthContext.Provider value={{ usuario, login, register, logout }}>{children}</AuthContext.Provider>;
+  function atualizarDadosPerfil(perfil: PerfilUsuario, perfilId: number, dados: { nome: string; email?: string }) {
+    setUsuario(atual => {
+      if (!atual || atual.perfil !== perfil || atual.perfilId !== perfilId) return atual;
+      const atualizado = { ...atual, nome: dados.nome, email: dados.email ?? atual.email };
+      userSession.save(atualizado);
+      return atualizado;
+    });
+  }
+
+  return <AuthContext.Provider value={{ usuario, login, register, logout, atualizarDadosPerfil }}>{children}</AuthContext.Provider>;
 }

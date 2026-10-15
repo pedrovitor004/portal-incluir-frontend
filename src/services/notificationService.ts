@@ -2,6 +2,7 @@ import Swal, { type SweetAlertIcon } from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 import "../styles/toast.css";
 import { toastConfig } from "../config/toast";
+import { getOverlayToolsHost } from "./overlayTools";
 
 const toast = Swal.mixin({
   ...toastConfig,
@@ -16,7 +17,7 @@ const toast = Swal.mixin({
 function show(icon: SweetAlertIcon, message: string) {
   window.dispatchEvent(new CustomEvent("portal:notice", { detail: { kind: icon, message } }));
   // titleText mantém mensagens vindas da API como texto, sem interpretar HTML.
-  void toast.fire({ icon, titleText: message, timer: document.documentElement.dataset.persistentNotices === "true" ? 0 : icon === "error" ? 8000 : toastConfig.timer });
+  void toast.fire({ target: getOverlayToolsHost(), icon, titleText: message, timer: document.documentElement.dataset.persistentNotices === "true" ? 0 : icon === "error" ? 8000 : toastConfig.timer });
 }
 
 export const notificationService = {

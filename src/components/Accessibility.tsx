@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { getOverlayToolsHost, registerOverlayDialog } from "../services/overlayTools";
 import { useLocation } from "react-router";
 import "../styles/accessibility.css";
 import logoClai from "../assets/logos/logo-clai.png";
@@ -29,6 +31,7 @@ export default function Accessibility() {
   const [rate, setRate] = useState(1);
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const releaseTools = useRef<(() => void) | null>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
   const utterance = useRef<SpeechSynthesisUtterance | null>(null);
   const speechGeneration = useRef(0);
@@ -50,6 +53,7 @@ export default function Accessibility() {
       if (!dialog.current?.open) {
         returnFocus.current = document.activeElement as HTMLElement | null;
         dialog.current?.showModal();
+        if (dialog.current) releaseTools.current = registerOverlayDialog(dialog.current);
       }
     }
     function notice(event: Event) {
@@ -61,6 +65,8 @@ export default function Accessibility() {
     return () => {
       window.removeEventListener("portal:accessibility", open);
       window.removeEventListener("portal:notice", notice);
+      releaseTools.current?.();
+      releaseTools.current = null;
     };
   }, []);
 
@@ -126,10 +132,10 @@ export default function Accessibility() {
 
   return <>
     <a className="skip-link" href="#main-content" onClick={() => document.querySelector<HTMLElement>("main")?.focus()}>Pular para o conteúdo</a>
-    <button ref={trigger} className="accessibility-trigger" onClick={() => window.dispatchEvent(new Event("portal:accessibility"))} aria-haspopup="dialog" aria-label="Acessibilidade" title="Acessibilidade">
+    {createPortal(<button ref={trigger} className="accessibility-trigger" onClick={() => window.dispatchEvent(new Event("portal:accessibility"))} aria-haspopup="dialog" aria-label="Acessibilidade" title="Acessibilidade">
       <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="4" r="2" /><path d="M4 8l8 2 8-2M12 10v5m0 0-4 6m4-6 4 6" /></svg>
-    </button>
-    <dialog ref={dialog} className="accessibility-panel" aria-labelledby="accessibility-title" onClose={() => (returnFocus.current?.isConnected ? returnFocus.current : trigger.current)?.focus()}>
+    </button>, getOverlayToolsHost())}
+    <dialog ref={dialog} className="accessibility-panel" aria-labelledby="accessibility-title" onClose={() => { releaseTools.current?.(); releaseTools.current = null; (returnFocus.current?.isConnected ? returnFocus.current : trigger.current)?.focus(); }}>
       <div className="accessibility-heading">
         <div className="accessibility-institution">
           <img src={logoIfpb} alt="Instituto Federal da Paraíba" />

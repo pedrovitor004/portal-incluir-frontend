@@ -1,5 +1,5 @@
 import type { Usuario } from "../../types/auth";
-import { accessProfiles } from "../../config/access";
+import ProfileMenu from "../profile/ProfileMenu";
 import { MenuIcon } from "../icons/AppIcons";
 import logoIfpb from "../../assets/logos/logo-ifpb.png";
 import logoClai from "../../assets/logos/logo-clai.png";
