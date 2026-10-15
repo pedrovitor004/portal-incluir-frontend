@@ -6,14 +6,21 @@ import LoginPage from "../../pages/auth/LoginPage";
 import HomePage from "../../pages/home/HomePage";
 import NotFoundPage from "../../pages/not-found/NotFoundPage";
 import RegisterPage from "../../pages/auth/RegisterPage";
-import CoordenadorLayout from "../../layouts/CoordenadorLayout";
+import AppLayout from "../../layouts/AppLayout";
 import DashboardCoordenador from "../../pages/coordenador/DashboardCoordenador";
+import { accessProfiles } from "../../config/access";
+import type { PerfilUsuario } from "../../types/auth";
 
-function CoordenadorRoute() {
+function PerfilRoute({ perfil }: { perfil: PerfilUsuario }) {
   const { usuario } = useAuth();
   if (!usuario) return <Navigate to="/" replace />;
-  if (usuario.perfil !== "COORDENADOR") return <Navigate to={destinoUsuario(usuario)} replace />;
-  return <CoordenadorLayout><DashboardCoordenador /></CoordenadorLayout>;
+  if (usuario.perfil !== perfil) return <Navigate to={destinoUsuario(usuario)} replace />;
+  return <AppLayout>{perfil === "COORDENADOR" ? <DashboardCoordenador /> : <HomePage />}</AppLayout>;
+}
+
+function HomeRedirect() {
+  const { usuario } = useAuth();
+  return <Navigate to={usuario ? destinoUsuario(usuario) : "/"} replace />;
 }
 export default function AppRoutes() {
   return (
@@ -21,15 +28,12 @@ export default function AppRoutes() {
       {/* Páginas públicas */}
       <Route path="/" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route path="/home" element={<HomePage />} />
+      <Route path="/home" element={<HomeRedirect />} />
 
       {/* Área do coordenador */}
-      <Route
-        path="/coordenador/dashboard"
-        element={
-          <CoordenadorRoute />
-        }
-      />
+      {(Object.keys(accessProfiles) as PerfilUsuario[]).map(perfil => (
+        <Route key={perfil} path={`${accessProfiles[perfil].basePath}/dashboard`} element={<PerfilRoute perfil={perfil} />} />
+      ))}
 
       {/* Página não encontrada */}
       <Route path="*" element={<NotFoundPage />} />

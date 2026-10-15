@@ -1,3 +1,5 @@
+import { accessProfiles } from "./access";
+
 import type { Usuario } from "../types/auth";
 
 export const routes = {
@@ -8,5 +10,5 @@ export const routes = {
 } as const;
 
 export function destinoUsuario(usuario: Usuario) {
-  return usuario.perfil === "COORDENADOR" ? routes.dashboardCoordenador : routes.home;
+  return `${accessProfiles[usuario.perfil].basePath}/dashboard`;
 }
