@@ -6,6 +6,8 @@ export const routes = {
   login: "/",
   register: "/register",
   home: "/home",
+  lgpd: "/recursos/lgpd",
+  legislacao: "/recursos/legislacao",
   dashboardCoordenador: "/coordenador/dashboard",
 } as const;
 

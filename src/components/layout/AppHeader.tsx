@@ -3,23 +3,25 @@ import ProfileMenu from "../profile/ProfileMenu";
 import { MenuIcon } from "../icons/AppIcons";
 import logoIfpb from "../../assets/logos/logo-ifpb.png";
 import logoClai from "../../assets/logos/logo-clai.png";
+import { Link } from "react-router";
+import { routes } from "../../config/routes";
 
 type Props = {
-  usuario: Usuario;
-  mobileOpen: boolean;
-  onToggleMobile: () => void;
+  usuario: Usuario | null;
+  mobileOpen?: boolean;
+  onToggleMobile?: () => void;
 };
 
 export default function AppHeader({
   usuario,
-  mobileOpen,
+  mobileOpen = false,
   onToggleMobile,
 }: Props) {
   return (
     <header className="sticky top-0 z-30 shrink-0 border-b border-[#dce5dc] bg-white px-4 py-2 sm:px-5">
       <div className="flex min-h-12 items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <button
+          {onToggleMobile && <button
             type="button"
             onClick={onToggleMobile}
             aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
@@ -28,7 +30,7 @@ export default function AppHeader({
             className="rounded-md p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
           >
             <MenuIcon />
-          </button>
+          </button>}
 
           <div className="flex min-w-0 items-center gap-3">
             <img
@@ -54,7 +56,28 @@ export default function AppHeader({
           </div>
         </div>
 
-        <ProfileMenu usuario={usuario} />
+        {usuario ? <div className="flex shrink-0 items-center gap-3">
+          <div className="hidden text-right sm:block">
+            <p className="text-[10px] text-slate-500">
+              {accessProfiles[usuario.perfil].label}
+            </p>
+            <p className="text-xs font-semibold text-slate-800">
+              {usuario.nome}
+            </p>
+          </div>
+
+          <div
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-[#e6f4e8] text-base font-bold text-primary"
+            aria-label={usuario.nome}
+          >
+            {usuario.nome
+              .split(" ")
+              .filter(Boolean)
+              .slice(0, 2)
+              .map((n) => n[0])
+              .join("")}
+          </div>
+        </div> : <Link to={routes.login} className="rounded-lg px-4 py-3 text-sm font-semibold text-primary hover:bg-[#edf7ee]">Entrar no portal</Link>}
       </div>
     </header>
   );
