@@ -38,3 +38,13 @@ Componentes usados apenas por uma página ou área ficam próximos dela. Compone
 `src/components/common/Modal.tsx` recebe `open`, `onClose`, `title`, `description` opcional e o conteúdo em `children`. Use um botão com `aria-haspopup="dialog"` para abri-lo e mantenha o estado de abertura na página que o utiliza.
 
 O componente usa o diálogo nativo do navegador para conter o foco e bloquear interações com o fundo. Permite fechar com Escape e pelos botões de fechamento, devolve o foco ao elemento de origem e mantém o conteúdo rolável em telas pequenas.
+
+## Ferramentas sobre os modais
+
+`src/services/overlayTools.ts` mantém uma área compartilhada para o botão de acessibilidade, o widget VLibras e os toasts. Essa área é movida para o diálogo ativo e retorna à página ao fechar, preservando os componentes e o estado do widget. Isso permite que as ferramentas continuem interativas na camada nativa de modais do navegador.
+
+Novos diálogos nativos devem chamar `registerOverlayDialog` depois de `showModal` e executar a função de liberação antes de fechar/desmontar. As notificações usam `getOverlayToolsHost` como destino. O conteúdo visual do modal fica separado dessa área para não recortar ou animar as ferramentas.
+
+## Consulta e edição do perfil
+
+Os componentes de `src/components/profile/`, os tipos em `src/types/profile.ts` e o serviço `src/services/profileService.ts` são compartilhados. Os contratos específicos das APIs ficam em `src/services/profile/adapters/`, habilitados pelo registro em `src/config/profile.ts`. Consulte [perfis.md](perfis.md) para implementar outro perfil sem duplicar os componentes.
