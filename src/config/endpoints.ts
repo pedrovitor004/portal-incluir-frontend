@@ -5,6 +5,7 @@ export const endpoints = {
     register: "/auth/register",
   },
   coordenadores: {
+    perfil: (id: number) => `/coordenadores/${id}`,
     dashboard: (id: number) => `/coordenadores/${id}/dashboard`,
   },
 } as const;
