@@ -34,13 +34,13 @@ export default function AppHeader({
             <img
               src={logoIfpb}
               alt="IFPB"
-              className="h-10 w-10 shrink-0 object-contain"
+              className="h-14 w-12 shrink-0 object-contain"
             />
 
             <img
               src={logoClai}
               alt="CLAI"
-              className="h-11 w-12 shrink-0 object-contain"
+              className="h-14 w-14 shrink-0 object-contain"
             />
 
             <div className="hidden min-w-0 sm:block">
