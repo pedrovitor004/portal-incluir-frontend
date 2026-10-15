@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { colorThemes, type ColorTheme } from "../../config/uiThemes";
 import "../../styles/modal.css";
+import { registerOverlayDialog } from "../../services/overlayTools";
 
 type ModalProps = {
   open: boolean;
@@ -10,11 +11,14 @@ type ModalProps = {
   description?: string;
   icon?: ReactNode;
   tone?: ColorTheme;
+  busy?: boolean;
+  position?: "center" | "top";
+  size?: "default" | "wide";
   children: ReactNode;
 };
 
-/** Native dialog supplies focus containment and makes the background inert. */
-export default function Modal({ open, onClose, title, description, icon, tone = "green", children }: ModalProps) {
+/** Fullscreen shell keeps native modality while shared tools stay above the panel. */
+export default function Modal({ open, onClose, title, description, icon, tone = "green", busy = false, position = "center", size = "default", children }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -25,8 +29,10 @@ export default function Modal({ open, onClose, title, description, icon, tone = 
     const previousFocus = document.activeElement;
     const previousOverflow = document.body.style.overflow;
     dialog.showModal();
+    const releaseTools = registerOverlayDialog(dialog);
     document.body.style.overflow = "hidden";
     return () => {
+      releaseTools();
       dialog.close();
       document.body.style.overflow = previousOverflow;
       if (previousFocus instanceof HTMLElement) previousFocus.focus();
@@ -40,10 +46,10 @@ export default function Modal({ open, onClose, title, description, icon, tone = 
       style={colorThemes[tone]}
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
-      onCancel={event => { event.preventDefault(); onClose(); }}
-      className="portal-modal fixed inset-0 m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-xl overflow-hidden rounded-2xl border border-[#dce5dc] bg-white p-0 text-slate-800 shadow-[0_24px_80px_-16px_rgba(15,44,24,0.4)] backdrop:bg-[#102319]/45 backdrop:backdrop-blur-sm"
+      onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}
+      className="portal-modal-shell fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none overflow-visible border-0 bg-transparent p-0 text-slate-800 backdrop:bg-[#102319]/30"
     >
-      <div className="flex max-h-[85dvh] flex-col">
+      <div className={`portal-modal absolute ${position === "top" ? "inset-x-0 bottom-auto top-4 mx-auto my-0 sm:top-8" : "inset-0 m-auto h-fit"} flex max-h-[85dvh] w-[calc(100%-2rem)] ${size === "wide" ? "max-w-2xl" : "max-w-xl"} flex-col overflow-hidden rounded-2xl border border-[#dce5dc] bg-white shadow-[0_24px_80px_-16px_rgba(15,44,24,0.4)]`}>
         <header className="relative shrink-0 border-b border-[#dce5dc] bg-gradient-to-br from-[var(--accent-soft)] via-white to-white p-6 pr-16 sm:p-8 sm:pr-20">
           <div>
             <div aria-hidden="true" className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[var(--accent-main)] shadow-[0_3px_12px_rgba(30,80,40,0.08)] ring-1 ring-[var(--accent-ring)]">
@@ -52,13 +58,13 @@ export default function Modal({ open, onClose, title, description, icon, tone = 
             <h2 id={titleId} className="text-2xl font-bold leading-snug tracking-tight text-[var(--accent-main)]">{title}</h2>
             {description && <p id={descriptionId} className="mt-2 text-sm leading-relaxed text-slate-600">{description}</p>}
           </div>
-          <button type="button" onClick={onClose} aria-label="Fechar janela" className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-[var(--accent-soft)] hover:text-[var(--accent-main)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-main)]">
+          <button type="button" disabled={busy} onClick={onClose} aria-label="Fechar janela" className="disabled:cursor-wait disabled:opacity-50 absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-[var(--accent-soft)] hover:text-[var(--accent-main)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-main)]">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
           </button>
         </header>
         <div className="min-h-0 overflow-y-auto p-6 text-sm leading-relaxed sm:p-8">{children}</div>
         <footer className="flex shrink-0 items-center justify-end border-t border-[#dce5dc] bg-[var(--accent-soft)] px-6 py-5 sm:px-8">
-          <button type="button" onClick={onClose} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent-main)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--accent-hover)] active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-main)] sm:w-auto"><svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m10 6-6 6 6 6M4 12h16" strokeLinecap="round" strokeLinejoin="round" /></svg>Fechar e voltar</button>
+          <button type="button" disabled={busy} onClick={onClose} className="disabled:cursor-wait disabled:opacity-50 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent-main)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--accent-hover)] active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-main)] sm:w-auto"><svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m10 6-6 6 6 6M4 12h16" strokeLinecap="round" strokeLinejoin="round" /></svg>Fechar e voltar</button>
         </footer>
       </div>
     </dialog>, document.body,

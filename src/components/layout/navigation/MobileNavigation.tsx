@@ -1,6 +1,7 @@
 import AppSidebar, { type SidebarProps } from "./AppSidebar";
 import { CloseIcon } from "../../icons/AppIcons";
 import { useEffect, useRef } from "react";
+import { registerOverlayDialog } from "../../../services/overlayTools";
 
 type Props = SidebarProps & { onClose: () => void };
 
@@ -10,7 +11,9 @@ export default function MobileNavigation({ onClose, ...sidebarProps }: Props) {
     const dialog = dialogRef.current;
     const trigger = document.activeElement;
     dialog?.showModal();
+    const releaseTools = dialog ? registerOverlayDialog(dialog) : undefined;
     return () => {
+      releaseTools?.();
       dialog?.close();
       if (trigger instanceof HTMLElement) trigger.focus();
     };
