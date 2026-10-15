@@ -1,13 +1,26 @@
 import { notificationService } from "../services/notificationService";
 import { mensagemErro } from "../services/apiError";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AuthContext } from "./AuthContext";
 import { authService } from "../services/authService";
 import { userSession } from "../services/sessionStorage";
+import { connectSessionTabs } from "../services/sessionTabs";
 import type { CadastroRequest, LoginRequest, Usuario } from "../types/auth";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(() => userSession.read());
+  const sessionTabs = useRef<ReturnType<typeof connectSessionTabs> | null>(null);
+
+  useEffect(() => {
+    const sourceTab = new URL(window.location.href).searchParams.get("fromTab") ?? undefined;
+    const bridge = connectSessionTabs(() => userSession.read(), conta => {
+      if (conta) userSession.save(conta);
+      else userSession.clear();
+      setUsuario(conta);
+    }, sourceTab);
+    sessionTabs.current = bridge;
+    return () => { bridge.close(); sessionTabs.current = null; };
+  }, []);
 
   function atualizarSessao(conta: Usuario) {
     userSession.save(conta);
@@ -35,7 +48,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
   function logout() {
+    const userId = userSession.read()?.id;
     userSession.clear();
+    if (userId !== undefined) sessionTabs.current?.logout(userId);
     setUsuario(null);
     notificationService.info("Você saiu da sua conta.");
   }
