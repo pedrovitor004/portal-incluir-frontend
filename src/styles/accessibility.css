@@ -83,7 +83,11 @@ html[data-reduced-motion="true"] *, html[data-reduced-motion="true"] *::before, 
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 html[data-contrast="true"] { color-scheme: dark; }
-html[data-contrast="true"] :where(body, #root, #root *, .swal2-popup, .swal2-popup *) { background-color: #101010 !important; background-image: none !important; color: #fff !important; border-color: #fff !important; box-shadow: none !important; }
+/* Portals move between body and dialogs. Theme their content consistently,
+   while keeping fullscreen overlay containers transparent. */
+html[data-contrast="true"] :where(body, #root, #root *, .portal-modal, .portal-modal *, .accessibility-panel, .accessibility-panel *, .accessibility-trigger, .swal2-popup, .swal2-popup *) { background-color: #101010 !important; background-image: none !important; color: #fff !important; border-color: #fff !important; box-shadow: none !important; }
+html[data-contrast="true"] :where(#portal-overlay-tools, .portal-modal-shell, .mobile-menu-dialog) { background-color: transparent !important; background-image: none !important; }
+html[data-contrast="true"] :where(svg, svg *) { background-color: transparent !important; }
 html[data-contrast="true"] :where(a, button, select) { color: #ffeb3b !important; }
 html[data-contrast="true"] :where(input, select, textarea) { border: 1px solid #fff !important; }
 html[data-contrast="true"] :where(input, textarea)::placeholder { color: #d1d5db !important; }
