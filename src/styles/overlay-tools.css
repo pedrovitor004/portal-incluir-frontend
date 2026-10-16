@@ -9,12 +9,3 @@
 #portal-overlay-tools > .swal2-container { pointer-events: none; }
 #portal-overlay-tools .swal2-popup { pointer-events: auto; }
 
-html[data-contrast="true"] :where(.portal-modal, .portal-modal *, .accessibility-trigger) {
-  background-color: #101010 !important;
-  background-image: none !important;
-  color: #fff !important;
-  border-color: #fff !important;
-  box-shadow: none !important;
-}
-
-html[data-contrast="true"] .accessibility-trigger { color: #ffeb3b !important; }

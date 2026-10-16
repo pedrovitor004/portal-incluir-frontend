@@ -2,15 +2,19 @@ import "../styles/overlay-tools.css";
 
 const dialogs: HTMLDialogElement[] = [];
 let observer: MutationObserver | undefined;
+let toolsHost: HTMLElement | undefined;
 
 /** One stable portal target: moving it preserves widget, toast and React state. */
 export function getOverlayToolsHost(): HTMLElement {
-  let host = document.getElementById("portal-overlay-tools");
+  // React can detach a dialog before its effect cleanup runs. Keep the same
+  // host even while detached: existing React portals still target this node.
+  let host = toolsHost ?? document.getElementById("portal-overlay-tools");
   if (!host) {
     host = document.createElement("div");
     host.id = "portal-overlay-tools";
-    document.body.append(host);
   }
+  toolsHost = host;
+  if (!host.isConnected) document.body.append(host);
   const target = host;
   const attachVLibras = () => {
     const widget = document.querySelector<HTMLElement>("[vw]");
