@@ -56,28 +56,7 @@ export default function AppHeader({
           </div>
         </div>
 
-        {usuario ? <div className="flex shrink-0 items-center gap-3">
-          <div className="hidden text-right sm:block">
-            <p className="text-[10px] text-slate-500">
-              {accessProfiles[usuario.perfil].label}
-            </p>
-            <p className="text-xs font-semibold text-slate-800">
-              {usuario.nome}
-            </p>
-          </div>
-
-          <div
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-[#e6f4e8] text-base font-bold text-primary"
-            aria-label={usuario.nome}
-          >
-            {usuario.nome
-              .split(" ")
-              .filter(Boolean)
-              .slice(0, 2)
-              .map((n) => n[0])
-              .join("")}
-          </div>
-        </div> : <Link to={routes.login} className="rounded-lg px-4 py-3 text-sm font-semibold text-primary hover:bg-[#edf7ee]">Entrar no portal</Link>}
+        {usuario ? <ProfileMenu usuario={usuario} /> : <Link to={routes.login} className="rounded-lg px-4 py-3 text-sm font-semibold text-primary hover:bg-[#edf7ee]">Entrar no portal</Link>}
       </div>
     </header>
   );

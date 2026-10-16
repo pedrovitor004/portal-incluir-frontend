@@ -5,7 +5,7 @@ import { AuthContext } from "./AuthContext";
 import { authService } from "../services/authService";
 import { userSession } from "../services/sessionStorage";
 import { connectSessionTabs } from "../services/sessionTabs";
-import type { CadastroRequest, LoginRequest, Usuario } from "../types/auth";
+import type { CadastroRequest, LoginRequest, PerfilUsuario, Usuario } from "../types/auth";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(() => userSession.read());

@@ -8,6 +8,5 @@ export const toastConfig: SweetAlertOptions = {
   closeButtonAriaLabel: "Fechar notificação",
   timer: 4500,
   timerProgressBar: true,
-  heightAuto: false,
   customClass: { popup: "portal-toast", title: "portal-toast-title" },
 };
