@@ -1,9 +1,10 @@
-import { DocumentIcon, StudentsIcon } from "../../../components/icons/AppIcons";
+import { ClipboardIcon, DocumentIcon, StudentsIcon } from "../../../components/icons/AppIcons";
 import { colorThemes } from "../../../config/uiThemes";
 
 const cards = [
   { titulo: 'Meus estudantes', descricao: 'Acompanhe os estudantes vinculados às suas atividades de ensino.', Icon: StudentsIcon, tom: 'green' },
   { titulo: 'Planos educacionais', descricao: 'Consulte os Planos Educacionais Individualizados (PEIs).', Icon: DocumentIcon, tom: 'blue' },
+  { titulo: 'Adaptações pedagógicas', descricao: 'Organize estratégias e recursos para apoiar a aprendizagem.', Icon: ClipboardIcon, tom: 'amber' },
 ] as const;
 
 export default function DashboardSummary() {
