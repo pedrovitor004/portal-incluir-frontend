@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
+import InstitutionalResources from "../../components/common/InstitutionalResources";
+import RecentNotifications from "../../components/common/RecentNotifications";
 import DashboardSummary from "./components/DashboardSummary";
 
 export default function DashboardProfessor() {
@@ -13,5 +15,7 @@ export default function DashboardProfessor() {
       <p className="mt-2 text-sm leading-relaxed text-slate-600">Este é o seu espaço no Portal Incluir. Use o menu lateral para se orientar pelas áreas do seu perfil.</p>
     </section>
     <DashboardSummary />
+    <RecentNotifications />
+    <InstitutionalResources />
   </div>;
 }
