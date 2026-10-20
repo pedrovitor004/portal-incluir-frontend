@@ -1,0 +1,55 @@
+import assert from "node:assert/strict";
+import { createServer } from "vite";
+import fs from "node:fs/promises";
+import ExcelJS from "exceljs";
+const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
+try {
+  const { prepararBase, relatoriosService, exigirAcessoRelatorios } = await server.ssrLoadModule("/src/services/relatorios/relatoriosService.ts");
+  const { montarRelatorio, tabelaExportacao } = await server.ssrLoadModule("/src/services/relatorios/relatorioModel.ts");
+  const { criarPdfRelatorio } = await server.ssrLoadModule("/src/services/relatorios/exportarPdf.ts");
+  const { criarExcelRelatorio } = await server.ssrLoadModule("/src/services/relatorios/exportarExcel.ts");
+  const { http } = await server.ssrLoadModule("/src/services/http.ts");
+  const agora = new Date("2026-10-20T12:00:00Z");
+  const estudantes = [{ id: 1, curso: "Informática", ativo: true, periodoIngresso: "2024.1", nomeCompleto: "NOME_RESTRITO", matricula: "MATRICULA_RESTRITA" }, { id: 2, curso: "Informática", ativo: false, dataConclusao: "2026-01-01" }, { id: 3, curso: "Edificações", ativo: false }, { id: 4, curso: "Expirado", ativo: true, dataLimiteRetencao: "2026-10-20" }];
+  const peis = [{ id: 1, estudanteId: 1, arquivado: false }, { id: 2, estudanteId: 1, arquivado: false }, { id: 3, estudanteId: 2, arquivado: false, historico: "[DEMONSTRAÇÃO UI DOCUMENTOS]" }];
+  const base = prepararBase(estudantes, peis, [], agora);
+  assert.equal(base.estudantes.length, 3); assert.equal(base.demonstracoesExcluidas, 1);
+  assert.ok(!JSON.stringify(base).includes("RESTRIT"));
+  const filtros = { curso: "", ingresso: "", situacao: "", documento: "" };
+  const r = montarRelatorio(base, filtros, ["total", "ativos", "inativos", "concluidos", "comPei", "comPlano"], "panorama", "Relatório institucional de acompanhamento discente");
+  assert.equal(r.total.total, 3); assert.equal(r.total.comPei, 1, "Dois PEIs do mesmo estudante não duplicam pessoas");
+  assert.equal(r.total.concluidos, 1); assert.equal(r.total.inativos, 2);
+  assert.equal(r.total.ativos + r.total.inativos, r.total.total);
+  const inativos = montarRelatorio(base, { ...filtros, situacao: "Inativo" }, ["total","concluidos"], "panorama", "Teste");
+  assert.equal(inativos.total.total, 2); assert.equal(inativos.total.concluidos, 1);
+  assert.equal(montarRelatorio(base, { ...filtros, situacao: "Concluído" }, ["total"], "panorama", "Teste").total.total, 1);
+  const ativoConcluido = prepararBase([{ id: 9, ativo: true, dataConclusao: "2026-01-01" }], [], [], agora);
+  const independente = montarRelatorio(ativoConcluido, filtros, ["ativos","concluidos"], "panorama", "Teste");
+  assert.equal(independente.total.ativos, 1); assert.equal(independente.total.concluidos, 1);
+  assert.equal(montarRelatorio(base, { ...filtros, documento: "pei" }, ["total"], "panorama", "Teste").total.total, 1);
+  assert.equal(montarRelatorio(base, { ...filtros, ingresso: "2024.1" }, ["total"], "panorama", "Teste").total.total, 1);
+  assert.throws(() => montarRelatorio(base, filtros, [], "panorama", "Teste"));
+  const limitado = montarRelatorio(base, filtros, ["comPei"], "documentacao", "Teste");
+  assert.deepEqual(tabelaExportacao(limitado).cabecalho, ["Curso", "Com PEI"]);
+  globalThis.sessionStorage = { getItem: () => JSON.stringify({ id:1,perfilId:1,nome:"Teste",email:"teste@example.invalid",perfil:"PROFESSOR" }) };
+  assert.throws(exigirAcessoRelatorios);
+  globalThis.sessionStorage.getItem = () => JSON.stringify({ id:1,perfilId:1,nome:"Teste",email:"teste@example.invalid",perfil:"COORDENADOR" });
+  const get = http.get; const chamadas=[];
+  try {
+    http.get = async (url,options) => { chamadas.push([url,options.params._consulta]); return { data: url === "/estudantes" ? estudantes : url === "/planos-educacionais" ? peis : [] }; };
+    await relatoriosService.consultar(); assert.equal(chamadas.length,3); assert.ok(chamadas.every(c=>Number.isFinite(c[1])));
+    http.get = async () => { throw new Error("Falha na fonte"); };
+    await assert.rejects(() => relatoriosService.consultar(), /Falha na fonte/);
+  } finally { http.get = get; delete globalThis.sessionStorage; }
+  const pasta = "tmp/relatorios.local"; await fs.mkdir(pasta,{recursive:true});
+  const marcas = { brasao: "data:image/jpeg;base64," + (await fs.readFile("src/assets/logos/brasao-republica.jpg")).toString("base64"), ifpb: "data:image/png;base64," + (await fs.readFile("src/assets/logos/logo-ifpb.png")).toString("base64"), clai: "data:image/png;base64," + (await fs.readFile("src/assets/logos/logo-clai.png")).toString("base64") };
+  const pdf=criarPdfRelatorio(r,marcas); assert.equal(pdf.getNumberOfPages(), 1, "Relatório curto não deve criar capa ou páginas desnecessárias"); await fs.writeFile(`${pasta}/relatorio.pdf`,new Uint8Array(pdf.output("arraybuffer")));
+  const retrato = criarPdfRelatorio(montarRelatorio(base,filtros,["total","ativos","inativos","concluidos"],"panorama","Estudantes por curso"),marcas);
+  assert.equal(retrato.getNumberOfPages(),1); await fs.writeFile(`${pasta}/relatorio-retrato.pdf`,new Uint8Array(retrato.output("arraybuffer")));
+  const buffer=await criarExcelRelatorio(r); const wb=new ExcelJS.Workbook();await wb.xlsx.load(buffer); assert.equal(wb.worksheets.length,3); assert.equal(wb.getWorksheet("Indicadores por curso").getCell("B4").value,3); assert.equal(wb.getWorksheet("Indicadores por curso").getCell("B4").type,ExcelJS.ValueType.Number);
+  await fs.writeFile(`${pasta}/relatorio.xlsx`,new Uint8Array(buffer));
+  const pequeno = new ExcelJS.Workbook(); await pequeno.xlsx.load(await criarExcelRelatorio(limitado)); assert.equal(pequeno.getWorksheet("Indicadores por curso").columnCount,2);
+  const grande = { ...base, estudantes: Array.from({length:90},(_,i)=>({ id:i+10,curso:`Curso ${String(i).padStart(2,"0")} - Formação técnica e tecnológica com denominação extensa`,ingresso:"2024.1",situacao:"Ativo",concluido:false,pei:true,planoAcao:false })) };
+  const rg=montarRelatorio(grande,filtros,r.campos,"panorama","Relatório de acompanhamento com múltiplos cursos"); const pg=criarPdfRelatorio(rg,marcas); assert.ok(pg.getNumberOfPages()>2); await fs.writeFile(`${pasta}/relatorio-multipagina.pdf`,new Uint8Array(pg.output("arraybuffer")));
+  console.log("Relatórios: projeção sem identificação, contagens, filtros, retenção, acesso local, falha de fonte, PDF multipágina e XLSX numérico verificados.");
+} finally { await server.close(); }

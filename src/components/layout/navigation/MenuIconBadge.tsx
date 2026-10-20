@@ -8,6 +8,13 @@ const iconColors: Record<string, string> = {
   pei: "bg-[#facc15]",
   documentos: "bg-[#315b4a]",
   relatorios: "bg-[#facc15]",
+  pedagogico: "bg-[#315b4a]",
+  adaptacoes: "bg-[#315b4a]",
+  "conteudo-academico": "bg-[#0ea5e9]",
+  atendimentos: "bg-[#0ea5e9]",
+  administracao: "bg-[#7c648c]",
+  permissoes: "bg-[#315b4a]",
+  auditorias: "bg-[#0ea5e9]",
   usuarios: "bg-[#7c648c]",
 };
 

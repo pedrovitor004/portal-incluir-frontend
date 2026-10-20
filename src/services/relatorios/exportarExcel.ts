@@ -1,0 +1,21 @@
+import ExcelJS from "exceljs";
+import { camposRelatorio, notaMetodologica, referenciasRelatorio } from "../../config/relatorios";
+import { descreverFiltros, tabelaExportacao } from "./relatorioModel";
+import type { RelatorioInstitucional } from "../../types/relatorio";
+export async function criarExcelRelatorio(r: RelatorioInstitucional) {
+  const workbook = new ExcelJS.Workbook(); workbook.creator = "Portal Incluir - IFPB Campus Monteiro"; workbook.created = new Date(r.consultadoEm);
+  const resumo = workbook.addWorksheet("Resumo institucional"); resumo.columns = [{width: 34},{width: 26},{width: 26},{width: 26}];
+  resumo.mergeCells("A1:D2"); resumo.getCell("A1").value = r.titulo; resumo.getCell("A1").fill = {type:"pattern",pattern:"solid",fgColor:{argb:"FF287535"}}; resumo.getCell("A1").font={name:"Calibri",size:20,bold:true,color:{argb:"FFFFFFFF"}}; resumo.getCell("A1").alignment={vertical:"middle",wrapText:true}; resumo.getRow(1).height=32; resumo.getRow(2).height=28;
+  for (const [linha, texto] of [[4,"IFPB Campus Monteiro | Coordenação Local de Acessibilidade e Inclusão"],[5,`Consulta: ${new Date(r.consultadoEm).toLocaleString("pt-BR", {timeZone:"America/Sao_Paulo"})} (Brasília)`],[7,descreverFiltros(r.filtros)],[9,"Indicadores selecionados"]] as const) { resumo.mergeCells(`A${linha}:D${linha}`); resumo.getCell(`A${linha}`).value=texto; resumo.getCell(`A${linha}`).alignment={wrapText:true,vertical:"middle"}; }
+  resumo.getRow(7).height=55; resumo.getCell("A9").font={bold:true,size:12,color:{argb:"FF287535"}};
+  let indice=11; for(const c of camposRelatorio.filter(c=>r.campos.includes(c.id))) { resumo.getCell(`A${indice}`).value=c.titulo; resumo.getCell(`B${indice}`).value=r.total[c.id]; resumo.getCell(`B${indice}`).numFmt="0"; resumo.getRow(indice).height=25; indice++; }
+  resumo.mergeCells(`A${indice+2}:D${indice+3}`); resumo.getCell(`A${indice+2}`).value="Uso institucional restrito. Dados consolidados; não substitui a declaração oficial ao MEC/Inep. Assinatura e tramitação realizadas fora do Portal Incluir."; resumo.getCell(`A${indice+2}`).alignment={wrapText:true,vertical:"middle"}; resumo.getRow(indice+2).height=38;
+  const tabela=tabelaExportacao(r), dados=workbook.addWorksheet("Indicadores por curso",{views:[{state:"frozen",ySplit:1}]});
+  dados.columns=tabela.cabecalho.map((_,i)=>({width:i===0?58:22})); dados.addRow(tabela.cabecalho); tabela.linhas.forEach(l=>dados.addRow(l)); dados.autoFilter={from:{row:1,column:1},to:{row:Math.max(1,tabela.linhas.length),column:tabela.cabecalho.length}};
+  dados.getRow(1).height=34; dados.getRow(1).eachCell(c=>{c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF287535"}};c.font={bold:true,color:{argb:"FFFFFFFF"}};c.alignment={wrapText:true,vertical:"middle"};});
+  dados.eachRow((row,n)=>{if(n===1)return; row.height=40; row.eachCell((c,col)=>{c.alignment={wrapText:true,vertical:"middle",horizontal:col===1?"left":"right"}; if(col>1)c.numFmt="0"; if(n===dados.rowCount){c.font={bold:true,color:{argb:"FF205E2B"}};c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFE8F5E9"}};} else if(n%2===0)c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF5F8F4"}};});});
+  const metodo=workbook.addWorksheet("Metodologia"); metodo.columns=[{width:110}]; metodo.addRow(["Metodologia e fontes"]); metodo.getRow(1).font={bold:true,size:16,color:{argb:"FF287535"}}; metodo.getRow(1).height=30; metodo.addRow([notaMetodologica]); metodo.getRow(2).height=160; metodo.getCell("A2").alignment={wrapText:true,vertical:"top"}; metodo.addRow([`Registros documentais de demonstração excluídos: ${r.demonstracoesExcluidas}`]);
+  referenciasRelatorio.forEach(ref=>{metodo.addRow([ref.titulo]); metodo.addRow([{text:ref.url,hyperlink:ref.url}]);});
+  for(const sheet of workbook.worksheets){sheet.properties.defaultRowHeight=22;sheet.pageSetup={paperSize:9,orientation:sheet===dados?"landscape":"portrait",fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:0.4,right:0.4,top:0.5,bottom:0.5,header:0.2,footer:0.2}};sheet.headerFooter.oddFooter="&LPortal Incluir - Uso institucional restrito&R&P / &N";sheet.eachRow(row=>row.eachCell(c=>{c.font={name:"Calibri",size:11,...c.font};}));}
+  return workbook.xlsx.writeBuffer();
+}

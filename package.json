@@ -4,10 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test:documentos": "node scripts/test-documentos.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:relatorios": "node scripts/test-relatorios.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
