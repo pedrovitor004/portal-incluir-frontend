@@ -7,6 +7,7 @@ export const routes = {
   home: "/",
   lgpd: "/recursos/lgpd",
   legislacao: "/recursos/legislacao",
+  dashboardProfessor: "/professor/dashboard",
   dashboardCoordenador: "/coordenador/dashboard",
   estudantesCoordenador: "/coordenador/estudantes",
   anamneseCoordenador: "/coordenador/anamnese",
