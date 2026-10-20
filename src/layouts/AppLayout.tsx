@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { routes } from "../config/routes";
 import { useAuth } from "../hooks/useAuth";
 import AppHeader from "../components/layout/AppHeader";
 import DesktopNavigation from "../components/layout/navigation/DesktopNavigation";
@@ -21,7 +22,7 @@ export default function AppLayout({ children }: LayoutProps) {
   function handleLogout() {
     logout();
     closeMobileMenu();
-    navigate("/");
+    navigate(routes.home);
   }
 
   if (!usuario) return null;

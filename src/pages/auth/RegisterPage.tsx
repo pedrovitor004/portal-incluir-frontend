@@ -1,6 +1,6 @@
 import AccessibilitySymbols from "../../components/auth/AccessibilitySymbols";
 import { useAuth } from "../../hooks/useAuth";
-import { destinoUsuario } from "../../config/routes";
+import { destinoUsuario, routes } from "../../config/routes";
 import { mensagemErro } from "../../services/apiError";
 import type { CadastroRequest } from "../../types/auth";
 import { Link, useNavigate } from "react-router";
@@ -295,7 +295,7 @@ export default function RegisterPage() {
               </p>
 
               <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm font-medium leading-5 text-primary">
-                <Link to="/" className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+                <Link to={routes.login} className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
                   Já tenho conta
                 </Link>
               </div>
