@@ -9,6 +9,7 @@ export const routes = {
   lgpd: "/recursos/lgpd",
   legislacao: "/recursos/legislacao",
   dashboardCoordenador: "/coordenador/dashboard",
+  estudantesCoordenador: "/coordenador/estudantes",
 } as const;
 
 export function destinoUsuario(usuario: Usuario) {
