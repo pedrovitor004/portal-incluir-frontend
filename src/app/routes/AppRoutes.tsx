@@ -16,6 +16,7 @@ import InstitutionalDocumentPage from "../../pages/institutional/InstitutionalDo
 import { institutionalDocuments } from "../../config/institutionalDocuments";
 import GerenciarEstudantes from "../../pages/coordenador/estudantes/GerenciarEstudantes";
 import AnamnesePage from "../../pages/coordenador/estudantes/AnamnesePage";
+import PerfilEstudantePage from "../../pages/coordenador/estudantes/PerfilEstudantePage";
 
 type PerfilRouteProps = {
   perfil: PerfilUsuario;
@@ -106,6 +107,18 @@ export default function AppRoutes() {
             <GerenciarEstudantes />
           </PerfilRoute>
         }
+      />
+
+      <Route
+         path={routes.perfilEstudante}
+         element={
+           <PerfilRoute
+             perfil="COORDENADOR"
+             permission="estudantes.consultar"
+           >
+             <PerfilEstudantePage />
+           </PerfilRoute>
+         }
       />
 
       <Route

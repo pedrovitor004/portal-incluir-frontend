@@ -56,6 +56,15 @@ export default function GerenciarEstudantes({
     );
   }
 
+    function abrirPerfilEstudante(estudante: Estudante) {
+      navigate(
+        routes.perfilEstudante.replace(
+          ":id",
+          encodeURIComponent(String(estudante.id)),
+        ),
+      );
+    }
+
   useEffect(() => {
     let ativo = true;
 
@@ -237,7 +246,7 @@ export default function GerenciarEstudantes({
                 if (onAbrirEstudante) {
                   onAbrirEstudante(estudante);
                 } else {
-                  abrirAnamnese(estudante);
+                  abrirPerfilEstudante(estudante);
                 }
               }}
               className="rounded-md px-3 py-1.5 text-sm font-medium text-green-700 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
