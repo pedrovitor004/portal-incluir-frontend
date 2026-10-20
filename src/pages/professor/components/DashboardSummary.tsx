@@ -5,6 +5,7 @@ const cards = [
   { titulo: 'Meus estudantes', descricao: 'Acompanhe os estudantes vinculados às suas atividades de ensino.', Icon: StudentsIcon, tom: 'green' },
   { titulo: 'Planos educacionais', descricao: 'Consulte os Planos Educacionais Individualizados (PEIs).', Icon: DocumentIcon, tom: 'blue' },
   { titulo: 'Adaptações pedagógicas', descricao: 'Organize estratégias e recursos para apoiar a aprendizagem.', Icon: ClipboardIcon, tom: 'amber' },
+  { titulo: 'Conteúdo acadêmico', descricao: 'Prepare materiais de ensino para os estudantes acompanhados.', Icon: DocumentIcon, tom: 'red' }
 ] as const;
 
 export default function DashboardSummary() {
