@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { estudantesService } from "../../../services/estudantesService";
@@ -247,15 +246,19 @@ export default function PerfilEstudantePage() {
                 </span>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  // Conectar à rota do formulário de Plano de Ação.
-                }}
-                className="mt-7 inline-flex min-h-11 items-center justify-center rounded-md bg-[#36a653] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#278944]"
-              >
-                Cadastrar Plano de Ação
-              </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      `${routes.planoAcaoCoordenador}?estudanteId=${encodeURIComponent(
+                        String(estudante.id),
+                      )}`,
+                    )
+                  }
+                  className="mt-7 inline-flex min-h-11 items-center justify-center rounded-md bg-[#36a653] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#278944]"
+                >
+                  Cadastrar Plano de Ação
+                </button>
             </section>
 
             <section className="min-h-[300px] rounded-xl border border-[#d9e2d9] bg-white p-6 shadow-sm sm:p-7">
