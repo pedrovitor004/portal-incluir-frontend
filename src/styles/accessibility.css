@@ -5,7 +5,9 @@
 }
 :where(.bg-primary) :focus-visible { outline-color: white !important; }
 :where(button, a, select, summary) { touch-action: manipulation; }
-:where(button, select) { min-height: 24px; }
+@layer base {
+  :where(button, select) { min-height: 24px; }
+}
 main:focus, [data-page-title]:focus { outline: none; }
 .skip-link { position: fixed; top: .5rem; left: .5rem; z-index: 11000; transform: translateY(-200%); background: white; color: #174c24; padding: .75rem 1rem; border: 2px solid currentColor; border-radius: .5rem; }
 .skip-link:focus { transform: translateY(0); }
