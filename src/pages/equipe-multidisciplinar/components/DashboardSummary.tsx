@@ -1,10 +1,11 @@
-import { ClipboardIcon, StudentsIcon, UsersIcon } from "../../../components/icons/AppIcons";
+import { ChartIcon, ClipboardIcon, StudentsIcon, UsersIcon } from "../../../components/icons/AppIcons";
 import { colorThemes } from "../../../config/uiThemes";
 
 const cards = [
   { titulo: 'Estudantes acompanhados', descricao: 'Acompanhe os estudantes no contexto da sua atuação profissional.', Icon: StudentsIcon, tom: 'green' },
   { titulo: 'Atendimentos', descricao: 'Organize os registros de acompanhamento dos estudantes.', Icon: ClipboardIcon, tom: 'amber' },
   { titulo: 'Acompanhamento multidisciplinar', descricao: 'Articule orientações e ações de apoio junto à equipe.', Icon: UsersIcon, tom: 'blue' },
+  { titulo: 'Relatórios', descricao: 'Consulte as informações de acompanhamento da sua área.', Icon: ChartIcon, tom: 'red' }
 ] as const;
 
 export default function DashboardSummary() {
