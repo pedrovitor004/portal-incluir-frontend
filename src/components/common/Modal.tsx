@@ -14,11 +14,12 @@ type ModalProps = {
   busy?: boolean;
   position?: "center" | "top";
   size?: "default" | "wide";
+  footer?: ReactNode;
   children: ReactNode;
 };
 
 /** Fullscreen shell keeps native modality while shared tools stay above the panel. */
-export default function Modal({ open, onClose, title, description, icon, tone = "green", busy = false, position = "center", size = "default", children }: ModalProps) {
+export default function Modal({ open, onClose, title, description, icon, tone = "green", busy = false, position = "center", size = "default", footer, children }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -64,7 +65,7 @@ export default function Modal({ open, onClose, title, description, icon, tone = 
         </header>
         <div className="min-h-0 overflow-y-auto p-6 text-sm leading-relaxed sm:p-8">{children}</div>
         <footer className="flex shrink-0 items-center justify-end border-t border-[#dce5dc] bg-[var(--accent-soft)] px-6 py-5 sm:px-8">
-          <button type="button" disabled={busy} onClick={onClose} className="disabled:cursor-wait disabled:opacity-50 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent-main)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--accent-hover)] active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-main)] sm:w-auto"><svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m10 6-6 6 6 6M4 12h16" strokeLinecap="round" strokeLinejoin="round" /></svg>Fechar e voltar</button>
+          {footer ?? <button type="button" disabled={busy} onClick={onClose} className="disabled:cursor-wait disabled:opacity-50 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent-main)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--accent-hover)] active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-main)] sm:w-auto"><svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m10 6-6 6 6 6M4 12h16" strokeLinecap="round" strokeLinejoin="round" /></svg>Fechar e voltar</button>}
         </footer>
       </div>
     </dialog>, document.body,

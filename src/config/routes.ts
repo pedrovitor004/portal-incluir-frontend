@@ -2,9 +2,9 @@ import { accessProfiles } from "./access";
 import type { Usuario } from "../types/auth";
 
 export const routes = {
-  login: "/",
+  login: "/login",
   register: "/register",
-  home: "/home",
+  home: "/",
   lgpd: "/recursos/lgpd",
   legislacao: "/recursos/legislacao",
   dashboardCoordenador: "/coordenador/dashboard",

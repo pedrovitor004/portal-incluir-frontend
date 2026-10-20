@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
-import { Navigate, Route, Routes } from "react-router";
+import { type ReactNode } from "react";
+import PageErrorBoundary from "../../components/common/PageErrorBoundary";
+import { Navigate, Route, Routes, useLocation } from "react-router";
 
 import { useAuth } from "../../hooks/useAuth";
-import { destinoUsuario, routes } from "../../config/routes";
+import { routes } from "../../config/routes";
 import { accessProfiles, canAccess, type Permission } from "../../config/access";
 import type { PerfilUsuario } from "../../types/auth";
 
@@ -18,6 +19,7 @@ import GerenciarEstudantes from "../../pages/coordenador/estudantes/GerenciarEst
 import AnamnesePage from "../../pages/coordenador/estudantes/AnamnesePage";
 import PerfilEstudantePage from "../../pages/coordenador/estudantes/PerfilEstudantePage";
 
+
 type PerfilRouteProps = {
   perfil: PerfilUsuario;
   children?: ReactNode;
@@ -32,15 +34,15 @@ function PerfilRoute({
   const { usuario } = useAuth();
 
   if (!usuario) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={routes.login} replace />;
   }
 
   if (usuario.perfil !== perfil) {
-    return <Navigate to={destinoUsuario(usuario)} replace />;
+    return <NotFoundPage codigo={403} />;
   }
 
   if (permission && !canAccess(usuario.perfil, permission)) {
-    return <Navigate to={destinoUsuario(usuario)} replace />;
+    return <NotFoundPage codigo={403} />;
   }
 
   const pagina =
@@ -50,24 +52,17 @@ function PerfilRoute({
   return <AppLayout>{pagina}</AppLayout>;
 }
 
-function HomeRedirect() {
-  const { usuario } = useAuth();
-
-  return (
-    <Navigate
-      to={usuario ? destinoUsuario(usuario) : "/"}
-      replace
-    />
-  );
-}
-
 export default function AppRoutes() {
+  const location = useLocation();
   return (
+    <PageErrorBoundary key={location.pathname}>
     <Routes>
       {/* Páginas públicas */}
-      <Route path="/" element={<LoginPage />} />
+      <Route path={routes.home} element={<HomePage />} />
+      <Route path={routes.login} element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route path="/home" element={<HomeRedirect />} />
+      <Route path="/home" element={<Navigate to={routes.home} replace />} />
+      {([401, 403, 404, 500, 503] as const).map(codigo => <Route key={codigo} path={`/${codigo}`} element={<NotFoundPage codigo={codigo} />} />)}
 
       <Route
         path={routes.lgpd}
@@ -86,6 +81,7 @@ export default function AppRoutes() {
           />
         }
       />
+
 
       {/* Dashboards por perfil */}
       {(Object.keys(accessProfiles) as PerfilUsuario[]).map((perfil) => (
@@ -136,5 +132,6 @@ export default function AppRoutes() {
       {/* Página não encontrada */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </PageErrorBoundary>
   );
 }

@@ -1,0 +1,34 @@
+.portal-data-grid .ag-header-cell-label {
+  letter-spacing: 0.01em;
+}
+
+.portal-data-grid .ag-floating-filter {
+  background: #fff;
+}
+
+.portal-data-grid .ag-floating-filter-body .ag-input-field-input {
+  border-radius: 8px;
+  background: #fff;
+}
+
+.portal-data-grid .ag-paging-panel {
+  border-top: 1px solid #e5ece5;
+  background: #f8faf7;
+  color: #475569;
+  font-size: 12px;
+  min-height: 56px;
+}
+
+.portal-data-grid .ag-pinned-right-cols-container {
+  border-left: 1px solid #e5ece5;
+}
+
+.portal-data-grid .ag-row-hover .ag-cell {
+  transition: background-color 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-data-grid .ag-row-hover .ag-cell {
+    transition: none;
+  }
+}

@@ -1,0 +1,52 @@
+.accessibility-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: .375rem;
+  background: transparent;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgb(0 0 0 / 10%);
+  outline: 1px solid rgb(255 255 255 / 20%);
+  transition: box-shadow 180ms ease, outline-color 180ms ease;
+}
+.accessibility-symbol:hover, .accessibility-symbol:focus-visible {
+  outline-color: rgb(255 255 255 / 70%);
+  box-shadow: 0 8px 18px rgb(0 0 0 / 20%);
+}
+.accessibility-symbol__motion { display: block; transform-origin: center; }
+.accessibility-symbol:is(:hover, :focus-visible, .is-playing) .accessibility-symbol__motion {
+  animation: var(--symbol-animation) 800ms cubic-bezier(.22,.61,.36,1) both;
+}
+.accessibility-symbol--mobility { --symbol-animation: symbol-mobility; }
+.accessibility-symbol--vision { --symbol-animation: symbol-vision; }
+.accessibility-symbol--support { --symbol-animation: symbol-support; }
+.accessibility-symbol--puzzle { --symbol-animation: symbol-puzzle; }
+@keyframes symbol-mobility {
+  0%, 100% { transform: translateX(0); }
+  30% { transform: translateX(-3px) rotate(-3deg); }
+  65% { transform: translateX(5px) rotate(2deg); }
+}
+@keyframes symbol-vision {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  35% { transform: scale(.94); opacity: .65; }
+  65% { transform: scale(1.07); opacity: 1; }
+}
+@keyframes symbol-support {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-5px); }
+  70% { transform: translateY(-2px); }
+}
+@keyframes symbol-puzzle {
+  0%, 100% { transform: rotate(0) scale(1); }
+  30% { transform: rotate(-12deg) scale(.94); }
+  65% { transform: rotate(7deg) scale(1.05); }
+  85% { transform: rotate(-2deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .accessibility-symbol, .accessibility-symbol__motion { animation: none !important; transition: none !important; }
+}
+html[data-reduced-motion="true"] .accessibility-symbol__motion { animation: none !important; }

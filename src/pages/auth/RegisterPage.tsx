@@ -1,9 +1,6 @@
-import logoAmarela from "../../assets/logos/amarela.png";
-import logoAzul from "../../assets/logos/azul.png";
-import logoVerde from "../../assets/logos/verde.png";
-import logoVermelha from "../../assets/logos/vermelha.png";
+import AccessibilitySymbols from "../../components/auth/AccessibilitySymbols";
 import { useAuth } from "../../hooks/useAuth";
-import { destinoUsuario } from "../../config/routes";
+import { destinoUsuario, routes } from "../../config/routes";
 import { mensagemErro } from "../../services/apiError";
 import type { CadastroRequest } from "../../types/auth";
 import { Link, useNavigate } from "react-router";
@@ -220,7 +217,7 @@ export default function RegisterPage() {
             </div>
 
             <h2 className="mt-10 max-w-[390px] text-[34px] font-semibold leading-[1.1] tracking-tight">
-              Bem-vindo ao Portal<br />Incluir!
+              Bem-vindo(a) ao Portal<br />Incluir!
             </h2>
 
             <p className="mt-9 max-w-[500px] text-lg font-normal leading-[1.4] text-white/90">
@@ -233,28 +230,7 @@ export default function RegisterPage() {
               <div className="text-xs font-semibold leading-relaxed text-white/90">
                 CLAI • Instituto Federal da Paraíba
               </div>
-              <div className="flex items-center gap-5">
-                <img
-                  src={logoVermelha}
-                  alt="Logo vermelha"
-                  className="h-14 w-14 rounded-md object-contain ring-1 ring-white/20 shadow-[0_3px_8px_rgba(0,0,0,0.10)] transition duration-200 ease-out hover:ring-white/50 hover:shadow-[0_8px_18px_rgba(0,0,0,0.20)] motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-reduce:transition-none"
-                />
-                <img
-                  src={logoAzul}
-                  alt="Logo azul"
-                  className="h-14 w-14 rounded-md object-contain ring-1 ring-white/20 shadow-[0_3px_8px_rgba(0,0,0,0.10)] transition duration-200 ease-out hover:ring-white/50 hover:shadow-[0_8px_18px_rgba(0,0,0,0.20)] motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-reduce:transition-none"
-                />
-                <img
-                  src={logoVerde}
-                  alt="Logo verde"
-                  className="h-14 w-14 rounded-md object-contain ring-1 ring-white/20 shadow-[0_3px_8px_rgba(0,0,0,0.10)] transition duration-200 ease-out hover:ring-white/50 hover:shadow-[0_8px_18px_rgba(0,0,0,0.20)] motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-reduce:transition-none"
-                />
-                <img
-                  src={logoAmarela}
-                  alt="Logo amarela"
-                  className="h-14 w-14 rounded-md object-contain ring-1 ring-white/20 shadow-[0_3px_8px_rgba(0,0,0,0.10)] transition duration-200 ease-out hover:ring-white/50 hover:shadow-[0_8px_18px_rgba(0,0,0,0.20)] motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-reduce:transition-none"
-                />
-              </div>
+              <AccessibilitySymbols />
             </div>
           </div>
         </aside>
@@ -319,7 +295,7 @@ export default function RegisterPage() {
               </p>
 
               <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm font-medium leading-5 text-primary">
-                <Link to="/" className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+                <Link to={routes.login} className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
                   Já tenho conta
                 </Link>
               </div>
