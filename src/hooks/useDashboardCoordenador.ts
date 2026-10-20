@@ -16,7 +16,7 @@ export function useDashboardCoordenador() {
     if (!perfilId) return;
     const controller = new AbortController();
     dashboardService.buscarCoordenador(perfilId, controller.signal)
-      .then(setDados)
+      .then(result => { if (!controller.signal.aborted) setDados(result); })
       .catch(error => {
         if (controller.signal.aborted) return;
         const mensagem = mensagemErro(error);
@@ -26,6 +26,6 @@ export function useDashboardCoordenador() {
     return () => controller.abort();
   }, [perfilId, tentativa]);
 
-  function recarregar() { setErro(""); setTentativa(t => t + 1); }
+  function recarregar() { setDados(null); setErro(""); setTentativa(t => t + 1); }
   return { dados, erro, carregando: !dados && !erro, recarregar };
 }
