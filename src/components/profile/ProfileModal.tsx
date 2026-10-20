@@ -1,3 +1,4 @@
+import LoadingState from "../common/LoadingState";
 import { useEffect, useState } from "react";
 import Modal from "../common/Modal";
 import { useAuth } from "../../hooks/useAuth";
@@ -60,8 +61,9 @@ export default function ProfileModal({ adapter, usuario, initialEditing, onClose
   return (
     <Modal position="top" size="wide" open onClose={() => { if (!saving) onClose(); }} busy={saving} title={editing ? "Editar meus dados" : "Meu perfil"} description="Consulte e mantenha suas informações de cadastro atualizadas.">
       {loadError ? <div role="alert" className="rounded-xl bg-red-50 p-4 text-red-800"><p>{loadError}</p><button type="button" onClick={() => { setLoadError(""); setAttempt(value => value + 1); }} className="mt-3 min-h-11 rounded-lg bg-white px-4 py-2 font-semibold">Tentar novamente</button></div>
-        : !perfil ? <p role="status" className="rounded-xl bg-[#f3f8f2] p-5">Carregando seus dados…</p>
+        : !perfil ? <LoadingState label="Carregando seus dados..." />
         : <>
+          {saving && <LoadingState compact label="Salvando seus dados..." />}
           {success && <p role="status" className="mb-4 rounded-lg bg-green-50 p-3 text-green-800">Dados atualizados com sucesso.</p>}
           {saveError && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-red-800">{saveError}</p>}
           {editing ? <ProfileForm adapter={adapter} perfil={perfil} loginEmail={usuario.email} saving={saving} onSave={save} onCancel={() => { setEditing(false); setSaveError(""); }} />

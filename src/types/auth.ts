@@ -23,6 +23,5 @@ interface CadastroBase {
 export type CadastroRequest = CadastroBase & (
   | { perfil: "COORDENADOR"; cargo: string }
   | { perfil: "PROFESSOR"; disciplina: string }
-  | { perfil: "ADMINISTRADOR"; cargo: string }
   | { perfil: "EQUIPE_MULTIDISCIPLINAR"; cargo: string; areaAtuacao: string }
 );

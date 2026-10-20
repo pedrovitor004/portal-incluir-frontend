@@ -1,8 +1,10 @@
-import type { ReactNode } from "react";
-import { Navigate, Route, Routes } from "react-router";
+import { lazy, Suspense, type ReactNode } from "react";
+import PageErrorBoundary from "../../components/common/PageErrorBoundary";
+import LoadingState from "../../components/common/LoadingState";
+import { Navigate, Route, Routes, useLocation } from "react-router";
 
 import { useAuth } from "../../hooks/useAuth";
-import { destinoUsuario, routes } from "../../config/routes";
+import { routes } from "../../config/routes";
 import { accessProfiles, canAccess, type Permission } from "../../config/access";
 import type { PerfilUsuario } from "../../types/auth";
 
@@ -11,6 +13,8 @@ import RegisterPage from "../../pages/auth/RegisterPage";
 import HomePage from "../../pages/home/HomePage";
 import NotFoundPage from "../../pages/not-found/NotFoundPage";
 import AppLayout from "../../layouts/AppLayout";
+import DashboardProfessor from "../../pages/professor/DashboardProfessor";
+import DashboardEquipeMultidisciplinar from "../../pages/equipe-multidisciplinar/DashboardEquipeMultidisciplinar";
 import DashboardCoordenador from "../../pages/coordenador/DashboardCoordenador";
 import InstitutionalDocumentPage from "../../pages/institutional/InstitutionalDocumentPage";
 import { institutionalDocuments } from "../../config/institutionalDocuments";
@@ -18,6 +22,9 @@ import GerenciarEstudantes from "../../pages/coordenador/estudantes/GerenciarEst
 import AnamnesePage from "../../pages/coordenador/estudantes/AnamnesePage";
 import PerfilEstudantePage from "../../pages/coordenador/estudantes/PerfilEstudantePage";
 import PlanoAcaoPage from "../../pages/coordenador/estudantes/PlanoAcaoPage";
+
+const RelatoriosPage = lazy(() => import("../../pages/coordenador/relatorios/RelatoriosPage"));
+const DocumentosPage = lazy(() => import("../../pages/coordenador/documentos/DocumentosPage"));
 
 type PerfilRouteProps = {
   perfil: PerfilUsuario;
@@ -33,42 +40,35 @@ function PerfilRoute({
   const { usuario } = useAuth();
 
   if (!usuario) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={routes.login} replace />;
   }
 
   if (usuario.perfil !== perfil) {
-    return <Navigate to={destinoUsuario(usuario)} replace />;
+    return <NotFoundPage codigo={403} />;
   }
 
   if (permission && !canAccess(usuario.perfil, permission)) {
-    return <Navigate to={destinoUsuario(usuario)} replace />;
+    return <NotFoundPage codigo={403} />;
   }
 
   const pagina =
     children ??
-    (perfil === "COORDENADOR" ? <DashboardCoordenador /> : <HomePage />);
+    (perfil === "COORDENADOR" ? <DashboardCoordenador /> : perfil === "PROFESSOR" ? <DashboardProfessor /> : perfil === "EQUIPE_MULTIDISCIPLINAR" ? <DashboardEquipeMultidisciplinar /> : <HomePage />);
 
   return <AppLayout>{pagina}</AppLayout>;
 }
 
-function HomeRedirect() {
-  const { usuario } = useAuth();
-
-  return (
-    <Navigate
-      to={usuario ? destinoUsuario(usuario) : "/"}
-      replace
-    />
-  );
-}
-
 export default function AppRoutes() {
+  const location = useLocation();
   return (
+    <PageErrorBoundary key={location.pathname}>
     <Routes>
       {/* Páginas públicas */}
-      <Route path="/" element={<LoginPage />} />
+      <Route path={routes.home} element={<HomePage />} />
+      <Route path={routes.login} element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route path="/home" element={<HomeRedirect />} />
+      <Route path="/home" element={<Navigate to={routes.home} replace />} />
+      {([401, 403, 404, 500, 503] as const).map(codigo => <Route key={codigo} path={`/${codigo}`} element={<NotFoundPage codigo={codigo} />} />)}
 
       <Route
         path={routes.lgpd}
@@ -87,6 +87,10 @@ export default function AppRoutes() {
           />
         }
       />
+
+      {/* Documentos e relatórios da coordenação */}
+      <Route path={routes.relatoriosCoordenador} element={<PerfilRoute perfil="COORDENADOR" permission="relatorios"><Suspense fallback={<LoadingState label="Carregando relatórios..." />}><RelatoriosPage /></Suspense></PerfilRoute>} />
+      <Route path={routes.documentosCoordenador} element={<PerfilRoute perfil="COORDENADOR" permission="documentos"><Suspense fallback={<LoadingState label="Carregando documentos..." />}><DocumentosPage /></Suspense></PerfilRoute>} />
 
       {/* Dashboards por perfil */}
       {(Object.keys(accessProfiles) as PerfilUsuario[]).map((perfil) => (
@@ -149,5 +153,6 @@ export default function AppRoutes() {
       {/* Página não encontrada */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </PageErrorBoundary>
   );
 }

@@ -70,15 +70,7 @@ export default function DashboardSummary({ dados, erro, carregando, onRetry }: P
 
   return (
     <>
-      <header>
-        <h1 className="text-2xl font-bold leading-tight text-primary sm:text-[28px]">
-          Início do coordenador
-        </h1>
 
-        <p className="mt-1 text-sm text-slate-500">
-          Visão rápida dos estudantes, pendências e atividades recentes.
-        </p>
-      </header>
 
       {erro && <div role="alert" className="text-sm text-red-700">{erro} <button className="underline" onClick={onRetry}>Tentar novamente</button></div>}
       {carregando && <p role="status">Carregando dashboard...</p>}

@@ -1,7 +1,5 @@
-import logoAmarela from "../../assets/logos/amarela.png";
-import logoAzul from "../../assets/logos/azul.png";
-import logoVerde from "../../assets/logos/verde.png";
-import logoVermelha from "../../assets/logos/vermelha.png";
+import AccessibilitySymbols from "../../components/auth/AccessibilitySymbols";
+import LoadingState from "../../components/common/LoadingState";
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { destinoUsuario } from "../../config/routes";
@@ -88,7 +86,7 @@ export default function LoginPage() {
             </div>
 
             <h2 className="mt-10 max-w-[390px] text-[34px] font-semibold leading-[1.1] tracking-tight">
-              Bem-vindo ao Portal<br />Incluir!
+              Bem-vindo(a) ao Portal<br />Incluir!
             </h2>
 
             <p className="mt-9 max-w-[500px] text-lg font-normal leading-[1.4] text-white/90">
@@ -101,28 +99,7 @@ export default function LoginPage() {
               <div className="text-xs font-semibold leading-relaxed text-white/90">
                 CLAI • Instituto Federal da Paraíba
               </div>
-              <div className="flex items-center gap-5">
-                <img
-                  src={logoVermelha}
-                  alt="Logo vermelha"
-                  className="h-14 w-14 rounded-md object-contain ring-1 ring-white/20 shadow-[0_3px_8px_rgba(0,0,0,0.10)] transition duration-200 ease-out hover:ring-white/50 hover:shadow-[0_8px_18px_rgba(0,0,0,0.20)] motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-reduce:transition-none"
-                />
-                <img
-                  src={logoAzul}
-                  alt="Logo azul"
-                  className="h-14 w-14 rounded-md object-contain ring-1 ring-white/20 shadow-[0_3px_8px_rgba(0,0,0,0.10)] transition duration-200 ease-out hover:ring-white/50 hover:shadow-[0_8px_18px_rgba(0,0,0,0.20)] motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-reduce:transition-none"
-                />
-                <img
-                  src={logoVerde}
-                  alt="Logo verde"
-                  className="h-14 w-14 rounded-md object-contain ring-1 ring-white/20 shadow-[0_3px_8px_rgba(0,0,0,0.10)] transition duration-200 ease-out hover:ring-white/50 hover:shadow-[0_8px_18px_rgba(0,0,0,0.20)] motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-reduce:transition-none"
-                />
-                <img
-                  src={logoAmarela}
-                  alt="Logo amarela"
-                  className="h-14 w-14 rounded-md object-contain ring-1 ring-white/20 shadow-[0_3px_8px_rgba(0,0,0,0.10)] transition duration-200 ease-out hover:ring-white/50 hover:shadow-[0_8px_18px_rgba(0,0,0,0.20)] motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-reduce:transition-none"
-                />
-              </div>
+              <AccessibilitySymbols />
             </div>
           </div>
         </aside>
@@ -138,6 +115,7 @@ export default function LoginPage() {
               </div>
 
               <form onSubmit={entrar} aria-busy={enviando} aria-describedby={erro ? "login-error" : undefined} className="mt-7 flex flex-col">
+                  {enviando && <LoadingState compact label="Entrando no portal..." />}
                 {erro && <p id="login-error" role="alert" className="mb-4 text-sm text-red-700">{erro}</p>}
                 <div className="flex flex-col gap-5">
                   <label className="flex flex-col gap-2">

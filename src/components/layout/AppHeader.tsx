@@ -1,4 +1,5 @@
 import type { Usuario } from "../../types/auth";
+import NotificationsButton from "../notifications/NotificationsButton";
 import ProfileMenu from "../profile/ProfileMenu";
 import { MenuIcon } from "../icons/AppIcons";
 import logoIfpb from "../../assets/logos/logo-ifpb.png";
@@ -56,7 +57,7 @@ export default function AppHeader({
           </div>
         </div>
 
-        {usuario ? <ProfileMenu usuario={usuario} /> : <Link to={routes.login} className="rounded-lg px-4 py-3 text-sm font-semibold text-primary hover:bg-[#edf7ee]">Entrar no portal</Link>}
+        {usuario ? <div className="flex shrink-0 items-center gap-2 sm:gap-3"><NotificationsButton key={`${usuario.perfil}:${usuario.id}`} /><ProfileMenu usuario={usuario} /></div> : <Link to={routes.login} className="rounded-lg px-4 py-3 text-sm font-semibold text-primary hover:bg-[#edf7ee]">Entrar no portal</Link>}
       </div>
     </header>
   );

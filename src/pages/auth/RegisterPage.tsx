@@ -1,9 +1,7 @@
-import logoAmarela from "../../assets/logos/amarela.png";
-import logoAzul from "../../assets/logos/azul.png";
-import logoVerde from "../../assets/logos/verde.png";
-import logoVermelha from "../../assets/logos/vermelha.png";
+import AccessibilitySymbols from "../../components/auth/AccessibilitySymbols";
+import LoadingState from "../../components/common/LoadingState";
 import { useAuth } from "../../hooks/useAuth";
-import { destinoUsuario } from "../../config/routes";
+import { destinoUsuario, routes } from "../../config/routes";
 import { mensagemErro } from "../../services/apiError";
 import type { CadastroRequest } from "../../types/auth";
 import { Link, useNavigate } from "react-router";
@@ -13,7 +11,7 @@ import logoIfpb from "../../assets/logos/logo-ifpb.png";
 import logoPortal from "../../assets/logos/logo-portal.png";
 import PasswordField from "../../components/PasswordField";
 
-type BondType = "teacher" | "coordinator" | "multidisciplinary" | "admin";
+type BondType = "teacher" | "coordinator" | "multidisciplinary";
 
 type Field = {
   name: string;
@@ -37,11 +35,6 @@ const bondOptions = [
     value: "multidisciplinary" as const,
     title: "Equipe multidisciplinar",
     description: "Cadastro para apoio pedagógico e assistência.",
-  },
-  {
-    value: "admin" as const,
-    title: "Administrador",
-    description: "Acesso para administração do sistema.",
   },
 ];
 
@@ -74,15 +67,6 @@ const formFieldsByType: Record<BondType, Field[]> = {
     { name: "cargo", label: "Cargo", type: "text", placeholder: "Cargo da função" },
     { name: "setor", label: "Setor", type: "text", placeholder: "Setor de atuação" },
   ],
-  admin: [
-    { name: "nome", label: "Nome completo", type: "text", placeholder: "Seu nome completo" },
-    { name: "email", label: "E-mail", type: "email", placeholder: "nome@ifpb.edu.br" },
-    { name: "telefone", label: "Telefone", type: "tel", placeholder: "(00) 00000-0000" },
-    { name: "dataNascimento", label: "Data de nascimento", type: "date" },
-    { name: "matricula", label: "Matrícula", type: "text", placeholder: "Número da matrícula" },
-    { name: "cargo", label: "Cargo", type: "text", placeholder: "Cargo do administrador" },
-    { name: "setor", label: "Setor", type: "text", placeholder: "Setor de atuação" },
-  ],
 };
 
 function ProfileIcon({ type }: { type: BondType }) {
@@ -90,7 +74,6 @@ function ProfileIcon({ type }: { type: BondType }) {
     teacher: "m3 8 9-5 9 5-9 5-9-5Z M7 11v5c3 3 7 3 10 0v-5 M21 8v7",
     coordinator: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M5 21v-2a7 7 0 0 1 14 0v2 M9 16l3 3 3-3",
     multidisciplinary: "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M3 20v-2a6 6 0 0 1 12 0v2 M16 5a3 3 0 0 1 0 6 M17 14a5 5 0 0 1 4 5v1",
-    admin: "m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z m-4 9 3 3 5-6",
   };
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0 text-primary">
@@ -169,7 +152,6 @@ export default function RegisterPage() {
     switch (bondType) {
       case "teacher": request = { ...comum, perfil: "PROFESSOR", disciplina: String(form.disciplina || "") }; break;
       case "coordinator": request = { ...comum, perfil: "COORDENADOR", cargo: String(form.cargo || "") }; break;
-      case "admin": request = { ...comum, perfil: "ADMINISTRADOR", cargo: String(form.cargo || "") }; break;
       case "multidisciplinary": request = { ...comum, perfil: "EQUIPE_MULTIDISCIPLINAR", cargo: String(form.cargo || ""), areaAtuacao: String(form.areaAtuacao || "") }; break;
     }
     setEnviando(true); setErro("");
@@ -220,7 +202,7 @@ export default function RegisterPage() {
             </div>
 
             <h2 className="mt-10 max-w-[390px] text-[34px] font-semibold leading-[1.1] tracking-tight">
-              Bem-vindo ao Portal<br />Incluir!
+              Bem-vindo(a) ao Portal<br />Incluir!
             </h2>
 
             <p className="mt-9 max-w-[500px] text-lg font-normal leading-[1.4] text-white/90">
@@ -233,28 +215,7 @@ export default function RegisterPage() {
               <div className="text-xs font-semibold leading-relaxed text-white/90">
                 CLAI • Instituto Federal da Paraíba
               </div>
-              <div className="flex items-center gap-5">
-                <img
-                  src={logoVermelha}
-                  alt="Logo vermelha"
-                  className="h-14 w-14 rounded-md object-contain ring-1 ring-white/20 shadow-[0_3px_8px_rgba(0,0,0,0.10)] transition duration-200 ease-out hover:ring-white/50 hover:shadow-[0_8px_18px_rgba(0,0,0,0.20)] motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-reduce:transition-none"
-                />
-                <img
-                  src={logoAzul}
-                  alt="Logo azul"
-                  className="h-14 w-14 rounded-md object-contain ring-1 ring-white/20 shadow-[0_3px_8px_rgba(0,0,0,0.10)] transition duration-200 ease-out hover:ring-white/50 hover:shadow-[0_8px_18px_rgba(0,0,0,0.20)] motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-reduce:transition-none"
-                />
-                <img
-                  src={logoVerde}
-                  alt="Logo verde"
-                  className="h-14 w-14 rounded-md object-contain ring-1 ring-white/20 shadow-[0_3px_8px_rgba(0,0,0,0.10)] transition duration-200 ease-out hover:ring-white/50 hover:shadow-[0_8px_18px_rgba(0,0,0,0.20)] motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-reduce:transition-none"
-                />
-                <img
-                  src={logoAmarela}
-                  alt="Logo amarela"
-                  className="h-14 w-14 rounded-md object-contain ring-1 ring-white/20 shadow-[0_3px_8px_rgba(0,0,0,0.10)] transition duration-200 ease-out hover:ring-white/50 hover:shadow-[0_8px_18px_rgba(0,0,0,0.20)] motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-reduce:transition-none"
-                />
-              </div>
+              <AccessibilitySymbols />
             </div>
           </div>
         </aside>
@@ -289,6 +250,7 @@ export default function RegisterPage() {
                 </fieldset>
 
                 <form key={bondType} onSubmit={cadastrar} aria-busy={enviando} aria-describedby={erro ? "register-error" : undefined} onInput={() => { if (passwordMismatch) { setPasswordMismatch(false); setErro(""); } }} className="space-y-3">
+                  {enviando && <LoadingState compact label="Criando sua conta..." />}
                   <p id="password-hint" className="text-xs text-slate-600">Preencha os campos obrigatórios. A senha deve ter entre 6 e 72 caracteres.</p>
                   {erro && <p id="register-error" role="alert" className="text-sm text-red-700">{erro}</p>}
                   <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
@@ -319,7 +281,7 @@ export default function RegisterPage() {
               </p>
 
               <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm font-medium leading-5 text-primary">
-                <Link to="/" className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+                <Link to={routes.login} className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
                   Já tenho conta
                 </Link>
               </div>

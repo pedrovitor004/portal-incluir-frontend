@@ -15,7 +15,10 @@ export default function SidebarMenuItem({ item, currentPath, onNavigate }: Props
   return (
     <div>
       <div className={`flex items-center rounded-md transition-colors ${active || childActive ? "bg-[#58e16d] text-[#153d20]" : "text-white hover:bg-white/10"}`}>
-        <Link
+        {item.groupOnly ? <button type="button" onClick={() => setOpen(!expanded)} aria-expanded={expanded} aria-controls={controlsId}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+          <MenuIconBadge item={item} /><span>{item.label}</span>
+        </button> : <Link
           to={item.path}
           onClick={onNavigate}
           aria-current={active ? "page" : undefined}
@@ -23,7 +26,7 @@ export default function SidebarMenuItem({ item, currentPath, onNavigate }: Props
         >
           <MenuIconBadge item={item} />
           <span>{item.label}</span>
-        </Link>
+        </Link>}
         {Boolean(item.children?.length) && (
           <button
             type="button"
