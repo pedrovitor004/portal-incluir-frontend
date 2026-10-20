@@ -15,6 +15,7 @@ import DashboardCoordenador from "../../pages/coordenador/DashboardCoordenador";
 import InstitutionalDocumentPage from "../../pages/institutional/InstitutionalDocumentPage";
 import { institutionalDocuments } from "../../config/institutionalDocuments";
 import GerenciarEstudantes from "../../pages/coordenador/estudantes/GerenciarEstudantes";
+import AnamnesePage from "../../pages/coordenador/estudantes/AnamnesePage";
 
 type PerfilRouteProps = {
   perfil: PerfilUsuario;
@@ -103,6 +104,18 @@ export default function AppRoutes() {
             permission="estudantes.consultar"
           >
             <GerenciarEstudantes />
+          </PerfilRoute>
+        }
+      />
+
+      <Route
+        path={routes.anamneseCoordenador}
+        element={
+          <PerfilRoute
+            perfil="COORDENADOR"
+            permission="anamnese"
+          >
+            <AnamnesePage />
           </PerfilRoute>
         }
       />

@@ -113,6 +113,35 @@ const nomesNecessidades: Record<TipoNecessidadeEspecifica, string> = {
   OUTRA: "Outra necessidade",
 };
 
+export type EstudanteRequest = {
+   nomeCompleto: string;
+   dataNascimento: string;
+   curso: string;
+   matricula: string;
+   periodoIngresso: string;
+
+   telefone: string;
+   email: string;
+   nomeResponsavel: string;
+   telefoneResponsavel: string;
+   emailResponsavel: string;
+
+   possuiNecessidadeEspecifica: boolean | null;
+   necessidadesEspecificas: TipoNecessidadeEspecifica[];
+   outraNecessidadeEspecifica: string | null;
+
+   condicoesAssociadas: TipoCondicaoAssociada[];
+   outraCondicaoAssociada: string | null;
+
+   atendimentosCampus: TipoAtendimentoCampus[];
+
+   acessibilidadesFisicas: TipoAcessibilidadeFisica[];
+   outraAcessibilidadeFisica: string | null;
+
+   possuiOutraNecessidadeAtendimento: boolean | null;
+   descricaoOutraNecessidadeAtendimento: string | null;
+ };
+
 export function mapearEstudante(
   estudante: EstudanteResponse,
 ): Estudante {

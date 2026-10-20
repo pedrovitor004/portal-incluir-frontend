@@ -1,5 +1,6 @@
 import { http } from "./http";
 import type { EstudanteResponse } from "../types/estudante";
+import type { EstudanteRequest } from "../types/estudante";
 
 export const estudantesService = {
   async listarTodos(): Promise<EstudanteResponse[]> {
@@ -32,6 +33,25 @@ export const estudantesService = {
   async listarInativos(): Promise<EstudanteResponse[]> {
     const response = await http.get<EstudanteResponse[]>(
       "/estudantes/inativos"
+    );
+    return response.data;
+  },
+
+  async cadastrar(request: EstudanteRequest): Promise<EstudanteResponse> {
+    const response = await http.post<EstudanteResponse>(
+      "/estudantes",
+      request
+    );
+    return response.data;
+  },
+
+  async atualizar(
+    id: number,
+    request: EstudanteRequest
+  ): Promise<EstudanteResponse> {
+    const response = await http.put<EstudanteResponse>(
+      `/estudantes/${id}`,
+      request
     );
     return response.data;
   },

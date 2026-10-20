@@ -13,6 +13,8 @@ import {
   type ColDef,
   type ICellRendererParams,
 } from "ag-grid-community";
+import { useNavigate } from "react-router";
+import { routes } from "../../../config/routes";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -42,6 +44,17 @@ export default function GerenciarEstudantes({
   const [estudantesApi, setEstudantesApi] = useState<Estudante[]>([]);
   const [carregandoApi, setCarregandoApi] = useState(true);
   const [erroApi, setErroApi] = useState("");
+  const navigate = useNavigate();
+
+  function abrirAnamnese(estudante?: Estudante) {
+    const destino = routes.anamneseCoordenador;
+
+    navigate(
+      estudante
+        ? `${destino}?estudanteId=${encodeURIComponent(String(estudante.id))}`
+        : destino,
+    );
+  }
 
   useEffect(() => {
     let ativo = true;
@@ -220,8 +233,13 @@ export default function GerenciarEstudantes({
           return (
             <button
               type="button"
-              onClick={() => onAbrirEstudante?.(estudante)}
-              disabled={!onAbrirEstudante}
+              onClick={() => {
+                if (onAbrirEstudante) {
+                  onAbrirEstudante(estudante);
+                } else {
+                  abrirAnamnese(estudante);
+                }
+              }}
               className="rounded-md px-3 py-1.5 text-sm font-medium text-green-700 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Abrir
@@ -403,8 +421,13 @@ return (
 
             <button
               type="button"
-              onClick={onNovoEstudante}
-              disabled={!onNovoEstudante}
+              onClick={() => {
+                if (onNovoEstudante) {
+                  onNovoEstudante();
+                } else {
+                  abrirAnamnese();
+                }
+              }}
               className="inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded border border-[#d4dfd4] bg-white px-3 text-xs font-semibold text-[#14532d] transition hover:bg-[#f3f8f3] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Novo estudante
