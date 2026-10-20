@@ -11,6 +11,8 @@ export const routes = {
   estudantesCoordenador: "/coordenador/estudantes",
   anamneseCoordenador: "/coordenador/anamnese",
   perfilEstudante: "/coordenador/estudantes/:id",
+  relatoriosCoordenador: "/coordenador/relatorios",
+  documentosCoordenador: "/coordenador/documentos",
 } as const;
 
 export function destinoUsuario(usuario: Usuario) {

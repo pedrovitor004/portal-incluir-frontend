@@ -1,5 +1,6 @@
-import { type ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import PageErrorBoundary from "../../components/common/PageErrorBoundary";
+import LoadingState from "../../components/common/LoadingState";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 
 import { useAuth } from "../../hooks/useAuth";
@@ -19,6 +20,8 @@ import GerenciarEstudantes from "../../pages/coordenador/estudantes/GerenciarEst
 import AnamnesePage from "../../pages/coordenador/estudantes/AnamnesePage";
 import PerfilEstudantePage from "../../pages/coordenador/estudantes/PerfilEstudantePage";
 
+const RelatoriosPage = lazy(() => import("../../pages/coordenador/relatorios/RelatoriosPage"));
+const DocumentosPage = lazy(() => import("../../pages/coordenador/documentos/DocumentosPage"));
 
 type PerfilRouteProps = {
   perfil: PerfilUsuario;
@@ -82,6 +85,9 @@ export default function AppRoutes() {
         }
       />
 
+      {/* Documentos e relatórios da coordenação */}
+      <Route path={routes.relatoriosCoordenador} element={<PerfilRoute perfil="COORDENADOR" permission="relatorios"><Suspense fallback={<LoadingState label="Carregando relatórios..." />}><RelatoriosPage /></Suspense></PerfilRoute>} />
+      <Route path={routes.documentosCoordenador} element={<PerfilRoute perfil="COORDENADOR" permission="documentos"><Suspense fallback={<LoadingState label="Carregando documentos..." />}><DocumentosPage /></Suspense></PerfilRoute>} />
 
       {/* Dashboards por perfil */}
       {(Object.keys(accessProfiles) as PerfilUsuario[]).map((perfil) => (
