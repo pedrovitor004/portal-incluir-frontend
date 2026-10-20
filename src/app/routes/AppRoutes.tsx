@@ -14,6 +14,7 @@ import HomePage from "../../pages/home/HomePage";
 import NotFoundPage from "../../pages/not-found/NotFoundPage";
 import AppLayout from "../../layouts/AppLayout";
 import DashboardProfessor from "../../pages/professor/DashboardProfessor";
+import DashboardEquipeMultidisciplinar from "../../pages/equipe-multidisciplinar/DashboardEquipeMultidisciplinar";
 import DashboardCoordenador from "../../pages/coordenador/DashboardCoordenador";
 import InstitutionalDocumentPage from "../../pages/institutional/InstitutionalDocumentPage";
 import { institutionalDocuments } from "../../config/institutionalDocuments";
@@ -51,7 +52,7 @@ function PerfilRoute({
 
   const pagina =
     children ??
-    (perfil === "COORDENADOR" ? <DashboardCoordenador /> : perfil === "PROFESSOR" ? <DashboardProfessor /> : <HomePage />);
+    (perfil === "COORDENADOR" ? <DashboardCoordenador /> : perfil === "PROFESSOR" ? <DashboardProfessor /> : perfil === "EQUIPE_MULTIDISCIPLINAR" ? <DashboardEquipeMultidisciplinar /> : <HomePage />);
 
   return <AppLayout>{pagina}</AppLayout>;
 }

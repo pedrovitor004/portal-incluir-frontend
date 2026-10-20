@@ -47,7 +47,8 @@ export function getNavigation(perfil: PerfilUsuario): NavigationItem[] {
   const visible = (item: NavigationItem) =>
     (!item.profiles || item.profiles.includes(perfil)) &&
     (!item.permission || canAccess(perfil, item.permission));
-  const estudantesLabel = perfil === "PROFESSOR" ? "Meus estudantes" : "Estudantes";
+  const estudantesLabel = perfil === "PROFESSOR" ? "Meus estudantes"
+    : perfil === "EQUIPE_MULTIDISCIPLINAR" ? "Estudantes acompanhados" : "Estudantes";
   return navigation.filter(visible)
     .map(item => ({
       ...item,
