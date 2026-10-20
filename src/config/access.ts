@@ -5,13 +5,13 @@ export type Permission =
   | "pedagogico.consultar" | "pedagogico.editar" | "academico.gerar"
   | "sensivel.consultar" | "suporte.consultar" | "suporte.registrar"
   | "anamnese" | "planos.gerar" | "pei.consultar"
-  | "documentos" | "relatorios" | "usuarios";
+  | "documentos" | "relatorios" | "usuarios" | "permissoes" | "auditorias";
 
 const coordenador: Permission[] = [
   "estudantes.consultar", "estudantes.editar", "pedagogico.consultar",
   "pedagogico.editar", "academico.gerar", "sensivel.consultar",
   "suporte.consultar", "suporte.registrar", "anamnese", "planos.gerar",
-  "pei.consultar", "documentos", "relatorios", "usuarios",
+  "pei.consultar", "documentos", "relatorios", "usuarios", "permissoes", "auditorias",
 ];
 
 // Frontend policy only. The API must enforce permissions and student/professional scope.
