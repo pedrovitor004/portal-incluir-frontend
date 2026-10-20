@@ -1,5 +1,10 @@
+import { useEffect, useMemo, useState } from "react";
+import { estudantesService } from "../../../services/estudantesService";
+import {
+  mapearEstudante,
+  type Estudante,
+} from "../../../types/estudante";
 
-import { useMemo, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import {
   AllCommunityModule,
@@ -10,16 +15,6 @@ import {
 } from "ag-grid-community";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
-
-type Estudante = {
-  id: number;
-  nome: string;
-  matricula: string;
-  ano: string;
-  curso: string;
-  deficiencia: string;
-  status: string;
-};
 
 type Props = {
   estudantes?: Estudante[];
@@ -38,12 +33,55 @@ const temaEstudantes = themeQuartz.withParams({
 });
 
 export default function GerenciarEstudantes({
-  estudantes = [],
-  carregando = false,
-  erro,
+  estudantes: estudantesIniciais,
+  carregando: carregandoInicial = false,
+  erro: erroInicial,
   onAbrirEstudante,
   onNovoEstudante,
 }: Props) {
+  const [estudantesApi, setEstudantesApi] = useState<Estudante[]>([]);
+  const [carregandoApi, setCarregandoApi] = useState(true);
+  const [erroApi, setErroApi] = useState("");
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarEstudantes() {
+      try {
+        setCarregandoApi(true);
+        setErroApi("");
+
+        const resposta = await estudantesService.listarTodos();
+
+        if (ativo) {
+          setEstudantesApi(resposta.map(mapearEstudante));
+        }
+      } catch (error) {
+        if (ativo) {
+          setErroApi(
+            "Não foi possível carregar os estudantes. Verifique se o backend está em execução.",
+          );
+        }
+
+        console.error("Erro ao carregar estudantes:", error);
+      } finally {
+        if (ativo) {
+          setCarregandoApi(false);
+        }
+      }
+    }
+
+    carregarEstudantes();
+
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  const estudantes = estudantesIniciais ?? estudantesApi;
+  const carregando = carregandoInicial || carregandoApi;
+  const erro = erroInicial || erroApi;
+
   const [nome, setNome] = useState("");
   const [matricula, setMatricula] = useState("");
   const [curso, setCurso] = useState("");
@@ -80,30 +118,27 @@ export default function GerenciarEstudantes({
     [estudantes],
   );
 
-  const estudantesFiltrados = useMemo(() => {
-    const normalizar = (valor: string) =>
-      valor.toLocaleLowerCase("pt-BR").trim();
+    const estudantesFiltrados = useMemo(() => {
+      const normalizar = (valor: string) =>
+        valor.toLocaleLowerCase("pt-BR").trim();
 
-    return estudantes.filter((estudante) => {
-      const correspondeNome = normalizar(estudante.nome).includes(
-        normalizar(filtrosAplicados.nome),
-      );
+      return estudantes.filter((estudante) => {
+        const termoBusca = normalizar(filtrosAplicados.nome);
 
-      const correspondeMatricula = normalizar(
-        estudante.matricula,
-      ).includes(normalizar(filtrosAplicados.matricula));
+        const correspondeNomeOuMatricula =
+          normalizar(estudante.nome).includes(termoBusca) ||
+          normalizar(estudante.matricula).includes(termoBusca);
 
-      return (
-        correspondeNome &&
-        correspondeMatricula &&
-        (!filtrosAplicados.curso ||
-          estudante.curso === filtrosAplicados.curso) &&
-        (!filtrosAplicados.ano ||
-          estudante.ano === filtrosAplicados.ano) &&
-        (!filtrosAplicados.deficiencia ||
-          estudante.deficiencia === filtrosAplicados.deficiencia)
-      );
-    });
+        return (
+          correspondeNomeOuMatricula &&
+          (!filtrosAplicados.curso ||
+            estudante.curso === filtrosAplicados.curso) &&
+          (!filtrosAplicados.ano ||
+            estudante.ano === filtrosAplicados.ano) &&
+          (!filtrosAplicados.deficiencia ||
+            estudante.deficiencia === filtrosAplicados.deficiencia)
+        );
+      });
   }, [estudantes, filtrosAplicados]);
 
   const columnDefs = useMemo<ColDef<Estudante>[]>(
@@ -134,10 +169,14 @@ export default function GerenciarEstudantes({
       },
       {
         field: "deficiencia",
-        headerName: "Deficiência",
-        minWidth: 160,
-        flex: 1,
-        valueFormatter: (params) => params.value || "Não informado",
+        headerName: "Necessidades específicas",
+        minWidth: 220,
+        flex: 1.5,
+        wrapText: true,
+        autoHeight: true,
+        tooltipField: "deficiencia",
+        valueFormatter: (params) =>
+            params.value || "Não informado",
       },
       {
         field: "status",
@@ -146,14 +185,18 @@ export default function GerenciarEstudantes({
         flex: 0.8,
         cellRenderer: (params: ICellRendererParams<Estudante>) => {
           const status = params.value || "Não informado";
-          const ativo = String(status).toLowerCase() === "ativo";
+          const statusNormalizado = String(status).toLowerCase();
+          const ativo = statusNormalizado === "ativo";
+          const concluido = statusNormalizado === "concluído";
 
           return (
             <span
               className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
                 ativo
                   ? "bg-green-100 text-green-800"
-                  : "bg-gray-100 text-gray-700"
+                  : concluido
+                    ? "bg-blue-100 text-blue-800"
+                    : "bg-gray-100 text-gray-700"
               }`}
             >
               {status}
