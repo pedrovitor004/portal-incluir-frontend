@@ -1,8 +1,9 @@
-import { StudentsIcon } from "../../../components/icons/AppIcons";
+import { DocumentIcon, StudentsIcon } from "../../../components/icons/AppIcons";
 import { colorThemes } from "../../../config/uiThemes";
 
 const cards = [
   { titulo: 'Meus estudantes', descricao: 'Acompanhe os estudantes vinculados às suas atividades de ensino.', Icon: StudentsIcon, tom: 'green' },
+  { titulo: 'Planos educacionais', descricao: 'Consulte os Planos Educacionais Individualizados (PEIs).', Icon: DocumentIcon, tom: 'blue' },
 ] as const;
 
 export default function DashboardSummary() {
