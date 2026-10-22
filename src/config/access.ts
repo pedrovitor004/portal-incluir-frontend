@@ -1,17 +1,17 @@
-import type { PerfilUsuario } from "../types/auth";
+import type { PerfilUsuario, Usuario } from "../types/auth";
 
 export type Permission =
-  | "estudantes.consultar" | "estudantes.editar"
+  | "estudantes.vincular" | "estudantes.consultar" | "estudantes.editar"
   | "pedagogico.consultar" | "pedagogico.editar" | "academico.gerar"
   | "sensivel.consultar" | "suporte.consultar" | "suporte.registrar"
   | "anamnese" | "planos.gerar" | "pei.consultar"
-  | "documentos" | "relatorios" | "usuarios" | "permissoes" | "auditorias";
+  | "documentos" | "relatorios" | "usuarios" | "permissoes" | "auditorias" | "usuarios.gerenciar" | "permissoes.gerenciar" | "documentos.gerenciar" | "pei.editar";
 
 const coordenador: Permission[] = [
-  "estudantes.consultar", "estudantes.editar", "pedagogico.consultar",
+  "estudantes.vincular", "estudantes.consultar", "estudantes.editar", "pedagogico.consultar",
   "pedagogico.editar", "academico.gerar", "sensivel.consultar",
   "suporte.consultar", "suporte.registrar", "anamnese", "planos.gerar",
-  "pei.consultar", "documentos", "relatorios", "usuarios", "permissoes", "auditorias",
+  "pei.consultar", "documentos", "relatorios", "usuarios", "permissoes", "auditorias", "usuarios.gerenciar", "permissoes.gerenciar", "documentos.gerenciar", "pei.editar",
 ];
 
 // Frontend policy only. The API must enforce permissions and student/professional scope.
@@ -28,6 +28,8 @@ export const accessProfiles = {
   },
 } satisfies Record<PerfilUsuario, { label: string; basePath: string; permissions: Permission[] }>;
 
-export function canAccess(perfil: PerfilUsuario, permission: Permission) {
+export function canAccess(conta: PerfilUsuario | Usuario, permission: Permission) {
+  if (typeof conta !== "string" && conta.permissoes) return conta.permissoes.includes(permission);
+  const perfil = typeof conta === "string" ? conta : conta.perfil;
   return (accessProfiles[perfil].permissions as readonly Permission[]).includes(permission);
 }

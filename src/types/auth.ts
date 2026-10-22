@@ -6,6 +6,7 @@ export interface Usuario {
   email: string;
   perfil: PerfilUsuario;
   perfilId: number;
+  permissoes?: import("../config/access").Permission[];
 }
 
 export interface LoginRequest { email: string; senha: string }
@@ -22,6 +23,6 @@ interface CadastroBase {
 
 export type CadastroRequest = CadastroBase & (
   | { perfil: "COORDENADOR"; cargo: string }
-  | { perfil: "PROFESSOR"; disciplina: string }
+  | { perfil: "PROFESSOR"; disciplina?: string; cursosAtuacao: string[] }
   | { perfil: "EQUIPE_MULTIDISCIPLINAR"; cargo: string; areaAtuacao: string }
 );

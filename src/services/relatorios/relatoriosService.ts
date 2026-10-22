@@ -1,8 +1,10 @@
+import { canAccess } from "../../config/access";
 import { http } from "../http";
 import { userSession } from "../sessionStorage";
 import type { BaseRelatorio, EstudanteRelatorio } from "../../types/relatorio";
 export function exigirAcessoRelatorios() {
-  if (userSession.read()?.perfil !== "COORDENADOR") throw new Error("A geração deste relatório está disponível para a coordenação.");
+  const conta = userSession.read();
+  if (!conta || !canAccess(conta, "relatorios")) throw new Error("A geração deste relatório está disponível para a coordenação.");
 }
 interface EstudanteApi { id: number; curso?: string; periodoIngresso?: string; ativo: boolean; dataConclusao?: string | null; dataLimiteRetencao?: string | null }
 interface DocumentoApi { id: number; estudanteId: number; arquivado: boolean; historico?: string; consideracoes?: string }
@@ -23,7 +25,7 @@ export const relatoriosService = {
     exigirAcessoRelatorios();
     const opcoes = { signal, params: { _consulta: Date.now() } };
     const [estudantes, peis, planos] = await Promise.all([http.get<EstudanteApi[]>("/estudantes", opcoes), http.get<DocumentoApi[]>("/planos-educacionais", opcoes), http.get<DocumentoApi[]>("/planos-acao", opcoes)]);
-    if (![estudantes.data, peis.data, planos.data].every(Array.isArray)) throw new Error("A API retornou dados incompatíveis para o relatório.");
+    if (![estudantes.data, peis.data, planos.data].every(Array.isArray)) throw new Error("Não foi possível organizar os dados do relatório. Tente consultar novamente.");
     return prepararBase(estudantes.data, peis.data, planos.data);
   },
 };

@@ -16,6 +16,7 @@ export const routes = {
   planoAcaoCoordenador: "/coordenador/plano-acao",
   relatoriosCoordenador: "/coordenador/relatorios",
   documentosCoordenador: "/coordenador/documentos",
+  auditoriasCoordenador: "/coordenador/administracao/auditorias",
 } as const;
 
 export function destinoUsuario(usuario: Usuario) {

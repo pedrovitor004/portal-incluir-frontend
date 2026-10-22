@@ -1,68 +1,17 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { cursosInstitucionais } from "../../../config/profissionais";
+import { necessidades, condicoes, atendimentos, acessibilidades } from "../../../config/estudanteFormOptions";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import Swal from "sweetalert2";
 import { toastConfig } from "../../../config/toast";
-import { routes } from "../../../config/routes";
+import { useAuth } from "../../../hooks/useAuth";
+import { accessProfiles } from "../../../config/access";
+import { confirmarCadastroEstudante } from "../../../services/estudanteConfirmation";
 import { estudantesService } from "../../../services/estudantesService";
 import type {
   EstudanteRequest,
   EstudanteResponse,
-  TipoNecessidadeEspecifica,
-  TipoCondicaoAssociada,
-  TipoAtendimentoCampus,
-  TipoAcessibilidadeFisica,
 } from "../../../types/estudante";
-
-const necessidades: { value: TipoNecessidadeEspecifica; label: string }[] = [
-  { value: "CEGUEIRA_TOTAL", label: "Cegueira total" },
-  { value: "VISAO_MONOCULAR", label: "Visão monocular" },
-  { value: "BAIXA_VISAO", label: "Baixa visão" },
-  { value: "SURDEZ_LINGUA_ORAL_LEITURA_LABIAL", label: "Surdez com leitura labial/oral" },
-  { value: "SURDEZ_USA_LIBRAS", label: "Surdez com uso de Libras" },
-  { value: "SURDEZ_SEM_LIBRAS_OU_ORALIZACAO", label: "Surdez sem Libras ou oralização" },
-  { value: "PERDA_AUDITIVA_PARCIAL_COM_APARELHO", label: "Perda auditiva parcial com aparelho" },
-  { value: "PERDA_AUDITIVA_PARCIAL", label: "Perda auditiva parcial" },
-  { value: "SURDOCEGUEIRA", label: "Surdocegueira" },
-  { value: "DEFICIENCIA_FISICA_MOBILIDADE", label: "Deficiência física - mobilidade" },
-  { value: "DEFICIENCIA_FISICA_ATIVIDADES_MANUAIS", label: "Deficiência física - atividades manuais" },
-  { value: "DEFICIENCIA_INTELECTUAL", label: "Deficiência intelectual" },
-  { value: "DEFICIENCIAS_MULTIPLAS", label: "Deficiências múltiplas" },
-  { value: "AUTISMO", label: "Autismo" },
-  { value: "ALTAS_HABILIDADES", label: "Altas habilidades" },
-  { value: "TDAH", label: "TDAH" },
-  { value: "DISLEXIA", label: "Dislexia" },
-  { value: "DIFICULDADE_APRENDIZAGEM", label: "Dificuldade de aprendizagem" },
-  { value: "OUTRA", label: "Outra necessidade" },
-];
-
-const condicoes: { value: TipoCondicaoAssociada; label: string }[] = [
-  { value: "EPILEPSIA", label: "Epilepsia" },
-  { value: "ESQUIZOFRENIA", label: "Esquizofrenia" },
-  { value: "TRANSTORNO_OPOSITOR_DESAFIADOR", label: "Transtorno opositor desafiador" },
-  { value: "TOC", label: "Transtorno obsessivo-compulsivo (TOC)" },
-  { value: "TRANSTORNO_BIPOLAR", label: "Transtorno bipolar" },
-  { value: "ANSIEDADE", label: "Ansiedade" },
-  { value: "DEPRESSAO", label: "Depressão" },
-  { value: "BORDERLINE", label: "Transtorno de personalidade borderline" },
-  { value: "INTOLERANCIA_ALIMENTAR", label: "Intolerância alimentar" },
-  { value: "DISTURBIO_COMPORTAMENTO", label: "Distúrbio de comportamento" },
-  { value: "OUTRA", label: "Outra condição" },
-];
-
-const atendimentos: { value: TipoAtendimentoCampus; label: string }[] = [
-  { value: "TRADUTOR_INTERPRETE_LIBRAS", label: "Tradutor/intérprete de Libras" },
-  { value: "CUIDADOR", label: "Cuidador" },
-  { value: "LEDOR_AUDIODESCRITOR", label: "Ledor/audiodescritor" },
-  { value: "MATERIAL_BRAILLE", label: "Material em Braille" },
-  { value: "ALFABETIZADOR_JOVENS_ADULTOS", label: "Alfabetizador de jovens e adultos" },
-];
-
-const acessibilidades: { value: TipoAcessibilidadeFisica; label: string }[] = [
-  { value: "SALA_TERREO_AMBIENTE_ACESSIVEL", label: "Sala no térreo ou ambiente acessível" },
-  { value: "TODAS_DISCIPLINAS_MESMA_SALA", label: "Todas as disciplinas na mesma sala" },
-  { value: "BANHEIRO_ADAPTADO", label: "Banheiro adaptado" },
-  { value: "OUTRA", label: "Outra acessibilidade física" },
-];
 
 const formularioVazio: EstudanteRequest = {
   nomeCompleto: "",
@@ -231,6 +180,10 @@ function CampoSimNao({ titulo, valor, onChange }: SimNaoProps) {
 
 export default function AnamnesePage() {
   const navigate = useNavigate();
+  const { usuario } = useAuth();
+  const basePath = accessProfiles[usuario?.perfil ?? "COORDENADOR"].basePath;
+  const envioPendente = useRef(false);
+  const [somenteLeitura, setSomenteLeitura] = useState(false);
   const [searchParams] = useSearchParams();
   const estudanteId = searchParams.get("estudanteId");
   const modoEdicao = estudanteId !== null;
@@ -243,48 +196,21 @@ export default function AnamnesePage() {
   const [sucesso, setSucesso] = useState("");
 
   useEffect(() => {
-    if (!modoEdicao || estudanteId === null) {
-      setFormulario(formularioVazio);
-      setCarregando(false);
-      return;
-    }
-
-    const id = Number(estudanteId);
-
-    if (!Number.isInteger(id) || id <= 0) {
-      setErro("O identificador do estudante é inválido.");
-      setCarregando(false);
-      return;
-    }
-
     let ativo = true;
-
     async function carregarEstudante() {
-      setCarregando(true);
-      setErro("");
-
+      if (!modoEdicao || estudanteId === null) { setFormulario(formularioVazio); setSomenteLeitura(false); setCarregando(false); return; }
+      const id = Number(estudanteId);
+      if (!Number.isInteger(id) || id <= 0) { setErro("O identificador do estudante é inválido."); setSomenteLeitura(true); setCarregando(false); return; }
+      setCarregando(true); setErro("");
       try {
         const estudante = await estudantesService.buscarPorId(id);
-
-        if (ativo) {
-          setFormulario(converterParaFormulario(estudante));
-        }
-      } catch {
-        if (ativo) {
-          setErro("Não foi possível carregar o estudante. Verifique a conexão e tente novamente.");
-        }
-      } finally {
-        if (ativo) setCarregando(false);
-      }
+        if (ativo) { setFormulario(converterParaFormulario(estudante)); setSomenteLeitura(estudante.concluido); }
+      } catch { if (ativo) { setErro("Não foi possível carregar o estudante. Verifique a conexão e tente novamente."); setSomenteLeitura(true); } }
+      finally { if (ativo) setCarregando(false); }
     }
-
     void carregarEstudante();
-
-    return () => {
-      ativo = false;
-    };
+    return () => { ativo = false; };
   }, [estudanteId, modoEdicao]);
-
   function alterarCampo(
     nome: keyof EstudanteRequest,
     valor: string
@@ -313,6 +239,7 @@ export default function AnamnesePage() {
 
   async function salvar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (envioPendente.current || carregando || somenteLeitura) return;
     setErro("");
     setSucesso("");
 
@@ -321,9 +248,11 @@ export default function AnamnesePage() {
       return;
     }
 
+    envioPendente.current = true;
     setSalvando(true);
 
     try {
+      if (!await confirmarCadastroEstudante(modoEdicao ? "editar" : "salvar", formulario.nomeCompleto)) return;
       const request: EstudanteRequest = {
         ...formulario,
         outraNecessidadeEspecifica:
@@ -379,6 +308,7 @@ export default function AnamnesePage() {
         text: "Confira os dados e tente novamente.",
       });
     } finally {
+      envioPendente.current = false;
       setSalvando(false);
     }
   }
@@ -408,10 +338,13 @@ export default function AnamnesePage() {
         </div>
       )}
 
+      {carregando && <p role="status" className="text-sm text-slate-500">Carregando os dados do estudante...</p>}
+      {somenteLeitura && <p role="status" className="rounded-xl border border-sky-100 bg-sky-50 p-4 text-sm text-sky-900">Este cadastro está disponível somente para consulta. Estudantes concluídos não podem ser alterados.</p>}
       <form
         onSubmit={salvar}
         className="space-y-6"
       >
+        <fieldset disabled={carregando || salvando || somenteLeitura} className="min-w-0 space-y-6">
         <section className="space-y-4 rounded-xl border border-[#d9e2d9] bg-white p-5 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-slate-900">
             1. Identificação do estudante
@@ -445,14 +378,13 @@ export default function AnamnesePage() {
               required
               maxLength={30}
             />
-            <CampoTexto
-              label="Curso"
-              name="curso"
-              value={formulario.curso}
-              onChange={alterarCampo}
-              required
-              maxLength={150}
-            />
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">Curso *
+              <select name="curso" value={formulario.curso} onChange={event => setFormulario(atual => ({ ...atual, curso: event.target.value }))} required className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-green-100">
+                <option value="">Selecione o curso</option>
+                {formulario.curso && !cursosInstitucionais.includes(formulario.curso) && <option value={formulario.curso}>{formulario.curso} (cadastro atual)</option>}
+                {cursosInstitucionais.map(curso => <option key={curso} value={curso}>{curso}</option>)}
+              </select>
+            </label>
             <CampoTexto
               label="Período de ingresso"
               name="periodoIngresso"
@@ -678,10 +610,11 @@ export default function AnamnesePage() {
           </div>
         </section>
 
+        </fieldset>
         <div className="flex flex-col-reverse justify-between gap-3 sm:flex-row">
           <button
             type="button"
-            onClick={() => navigate(routes.estudantesCoordenador)}
+            onClick={() => navigate(`${basePath}/estudantes`)}
             className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             Voltar para estudantes
@@ -689,7 +622,7 @@ export default function AnamnesePage() {
 
           <button
             type="submit"
-            disabled={salvando}
+            disabled={salvando || carregando || somenteLeitura}
             className="rounded-lg bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {salvando

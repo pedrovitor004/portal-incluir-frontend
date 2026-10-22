@@ -1,3 +1,4 @@
+import axios from "axios";
 import { notificationService } from "../services/notificationService";
 import { mensagemErro } from "../services/apiError";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -21,6 +22,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionTabs.current = bridge;
     return () => { bridge.close(); sessionTabs.current = null; };
   }, []);
+
+  useEffect(() => {
+    if (!usuario?.id) return;
+    let ativo = true;
+    let consultando = false;
+    const id = usuario.id;
+    async function conferir() {
+      if (consultando) return;
+      consultando = true;
+      try {
+        const atual = await authService.me();
+        if (ativo && userSession.read()?.id === id) { userSession.save(atual); setUsuario(atual); }
+      } catch (error) {
+        if (ativo && userSession.read()?.id === id && axios.isAxiosError(error) && [401, 403].includes(error.response?.status ?? 0)) { userSession.clear(); setUsuario(null); }
+      } finally { consultando = false; }
+    }
+    void conferir();
+    const timer = window.setInterval(() => void conferir(), 30000);
+    window.addEventListener("focus", conferir);
+    return () => { ativo = false; window.clearInterval(timer); window.removeEventListener("focus", conferir); };
+  }, [usuario?.id]);
 
   function atualizarSessao(conta: Usuario) {
     userSession.save(conta);
@@ -48,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
   function logout() {
+    void authService.logout().catch(() => notificationService.error("Não foi possível encerrar a sessão no servidor. Tente entrar e sair novamente."));
     const userId = userSession.read()?.id;
     userSession.clear();
     if (userId !== undefined) sessionTabs.current?.logout(userId);

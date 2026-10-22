@@ -25,6 +25,12 @@ import PlanoAcaoPage from "../../pages/coordenador/estudantes/PlanoAcaoPage";
 
 const RelatoriosPage = lazy(() => import("../../pages/coordenador/relatorios/RelatoriosPage"));
 const DocumentosPage = lazy(() => import("../../pages/coordenador/documentos/DocumentosPage"));
+const AuditoriasPage = lazy(() => import("../../pages/coordenador/auditorias/AuditoriasPage"));
+
+const UsuariosPage = lazy(() => import("../../pages/coordenador/administracao/UsuariosPage"));
+const PermissoesPage = lazy(() => import("../../pages/coordenador/administracao/PermissoesPage"));
+const GestaoAcompanhamentoPage = lazy(() => import("../../pages/coordenador/acompanhamento/GestaoAcompanhamentoPage"));
+const ResponsaveisPage = lazy(() => import("../../pages/coordenador/acompanhamento/ResponsaveisPage"));
 
 type PerfilRouteProps = {
   perfil: PerfilUsuario;
@@ -47,7 +53,7 @@ function PerfilRoute({
     return <NotFoundPage codigo={403} />;
   }
 
-  if (permission && !canAccess(usuario.perfil, permission)) {
+  if (permission && !canAccess(usuario, permission)) {
     return <NotFoundPage codigo={403} />;
   }
 
@@ -63,6 +69,25 @@ export default function AppRoutes() {
   return (
     <PageErrorBoundary key={location.pathname}>
     <Routes>
+      <Route path="/coordenador/adaptacoes" element={<PerfilRoute perfil="COORDENADOR" permission="pedagogico.consultar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="adaptacoes" visao="adaptacoes" /></Suspense></PerfilRoute>} />
+      <Route path="/coordenador/conteudo-academico" element={<PerfilRoute perfil="COORDENADOR" permission="academico.gerar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="conteudo" visao="conteudo" /></Suspense></PerfilRoute>} />
+      <Route path="/coordenador/atendimentos" element={<PerfilRoute perfil="COORDENADOR" permission="suporte.consultar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="atendimentos" visao="atendimentos" /></Suspense></PerfilRoute>} />
+      <Route path="/coordenador/responsaveis" element={<PerfilRoute perfil="COORDENADOR" permission="estudantes.vincular"><Suspense fallback={<LoadingState />}><ResponsaveisPage /></Suspense></PerfilRoute>} />
+      {(Object.keys(accessProfiles) as PerfilUsuario[]).flatMap(perfil => [
+        <Route key={`${perfil}-usuarios`} path={`${accessProfiles[perfil].basePath}/administracao/usuarios`} element={<PerfilRoute perfil={perfil} permission="usuarios"><Suspense fallback={<LoadingState />}><UsuariosPage /></Suspense></PerfilRoute>} />,
+        <Route key={`${perfil}-permissoes`} path={`${accessProfiles[perfil].basePath}/administracao/permissoes`} element={<PerfilRoute perfil={perfil} permission="permissoes"><Suspense fallback={<LoadingState />}><PermissoesPage /></Suspense></PerfilRoute>} />,
+        ...(["PROFESSOR", "EQUIPE_MULTIDISCIPLINAR"].includes(perfil) ? [
+          <Route key={`${perfil}-estudantes`} path={`${accessProfiles[perfil].basePath}/estudantes`} element={<PerfilRoute perfil={perfil} permission="estudantes.consultar"><GerenciarEstudantes /></PerfilRoute>} />,
+          <Route key={`${perfil}-perfil`} path={`${accessProfiles[perfil].basePath}/estudantes/:id`} element={<PerfilRoute perfil={perfil} permission="estudantes.consultar"><PerfilEstudantePage /></PerfilRoute>} />,
+          <Route key={`${perfil}-anamnese`} path={`${accessProfiles[perfil].basePath}/anamnese`} element={<PerfilRoute perfil={perfil} permission="anamnese"><AnamnesePage /></PerfilRoute>} />,
+          <Route key={`${perfil}-auditorias`} path={`${accessProfiles[perfil].basePath}/administracao/auditorias`} element={<PerfilRoute perfil={perfil} permission="auditorias"><Suspense fallback={<LoadingState />}><AuditoriasPage /></Suspense></PerfilRoute>} />,
+        ] : []),
+        ...(perfil !== "COORDENADOR" ? [
+          <Route key={`${perfil}-documentos`} path={`${accessProfiles[perfil].basePath}/documentos`} element={<PerfilRoute perfil={perfil} permission="documentos"><Suspense fallback={<LoadingState />}><DocumentosPage /></Suspense></PerfilRoute>} />,
+          <Route key={`${perfil}-relatorios`} path={`${accessProfiles[perfil].basePath}/relatorios`} element={<PerfilRoute perfil={perfil} permission="relatorios"><Suspense fallback={<LoadingState />}><RelatoriosPage /></Suspense></PerfilRoute>} />,
+        ] : []),
+      ])}
+
       {/* Páginas públicas */}
       <Route path={routes.home} element={<HomePage />} />
       <Route path={routes.login} element={<LoginPage />} />
@@ -93,6 +118,8 @@ export default function AppRoutes() {
       <Route path={routes.documentosCoordenador} element={<PerfilRoute perfil="COORDENADOR" permission="documentos"><Suspense fallback={<LoadingState label="Carregando documentos..." />}><DocumentosPage /></Suspense></PerfilRoute>} />
 
       {/* Dashboards por perfil */}
+      <Route path={routes.auditoriasCoordenador} element={<PerfilRoute perfil="COORDENADOR" permission="auditorias"><Suspense fallback={<LoadingState label="Carregando auditorias..." />}><AuditoriasPage /></Suspense></PerfilRoute>} />
+      <Route path="/administrador/administracao/auditorias" element={<PerfilRoute perfil="ADMINISTRADOR" permission="auditorias"><Suspense fallback={<LoadingState label="Carregando auditorias..." />}><AuditoriasPage /></Suspense></PerfilRoute>} />
       {(Object.keys(accessProfiles) as PerfilUsuario[]).map((perfil) => (
         <Route
           key={perfil}
@@ -101,6 +128,9 @@ export default function AppRoutes() {
         />
       ))}
 
+      <Route path="/administrador/estudantes" element={<PerfilRoute perfil="ADMINISTRADOR" permission="estudantes.consultar"><GerenciarEstudantes /></PerfilRoute>} />
+      <Route path="/administrador/estudantes/:id" element={<PerfilRoute perfil="ADMINISTRADOR" permission="estudantes.consultar"><PerfilEstudantePage /></PerfilRoute>} />
+      <Route path="/administrador/anamnese" element={<PerfilRoute perfil="ADMINISTRADOR" permission="anamnese"><AnamnesePage /></PerfilRoute>} />
       {/* Gerenciamento de estudantes */}
       <Route
         path={routes.estudantesCoordenador}

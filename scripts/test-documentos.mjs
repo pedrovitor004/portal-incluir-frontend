@@ -3,6 +3,7 @@ import { createServer } from "vite";
 
 const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
 try {
+  globalThis.sessionStorage = { getItem: () => JSON.stringify({ id: 1, perfilId: 1, nome: "Teste", email: "teste@example.invalid", perfil: "COORDENADOR" }) };
   const { documentosService, mapearDocumento } = await server.ssrLoadModule("/src/services/documentosService.ts");
   const { http } = await server.ssrLoadModule("/src/services/http.ts");
   const { formatarDataDocumento } = await server.ssrLoadModule("/src/config/documentos.ts");
@@ -51,4 +52,4 @@ try {
     assert.equal(excluido, undefined, "Um tipo sem integração não deve disparar exclusão para outro endpoint");
   } finally { http.get = get; http.delete = del; http.post = post; }
   console.log("Documentos: normalização, estados, consulta parcial e exclusão verificados com chamadas HTTP simuladas.");
-} finally { await server.close(); }
+} finally { delete globalThis.sessionStorage; await server.close(); }
