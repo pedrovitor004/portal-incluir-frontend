@@ -24,6 +24,7 @@ import PerfilEstudantePage from "../../pages/coordenador/estudantes/PerfilEstuda
 
 const RelatoriosPage = lazy(() => import("../../pages/coordenador/relatorios/RelatoriosPage"));
 const DocumentosPage = lazy(() => import("../../pages/coordenador/documentos/DocumentosPage"));
+const AuditoriasPage = lazy(() => import("../../pages/coordenador/auditorias/AuditoriasPage"));
 
 const UsuariosPage = lazy(() => import("../../pages/coordenador/administracao/UsuariosPage"));
 const PermissoesPage = lazy(() => import("../../pages/coordenador/administracao/PermissoesPage"));
@@ -68,6 +69,9 @@ export default function AppRoutes() {
       {(Object.keys(accessProfiles) as PerfilUsuario[]).flatMap(perfil => [
         <Route key={`${perfil}-usuarios`} path={`${accessProfiles[perfil].basePath}/administracao/usuarios`} element={<PerfilRoute perfil={perfil} permission="usuarios"><Suspense fallback={<LoadingState />}><UsuariosPage /></Suspense></PerfilRoute>} />,
         <Route key={`${perfil}-permissoes`} path={`${accessProfiles[perfil].basePath}/administracao/permissoes`} element={<PerfilRoute perfil={perfil} permission="permissoes"><Suspense fallback={<LoadingState />}><PermissoesPage /></Suspense></PerfilRoute>} />,
+        ...(["PROFESSOR", "EQUIPE_MULTIDISCIPLINAR"].includes(perfil) ? [
+          <Route key={`${perfil}-auditorias`} path={`${accessProfiles[perfil].basePath}/administracao/auditorias`} element={<PerfilRoute perfil={perfil} permission="auditorias"><Suspense fallback={<LoadingState />}><AuditoriasPage /></Suspense></PerfilRoute>} />,
+        ] : []),
         ...(perfil !== "COORDENADOR" ? [
           <Route key={`${perfil}-documentos`} path={`${accessProfiles[perfil].basePath}/documentos`} element={<PerfilRoute perfil={perfil} permission="documentos"><Suspense fallback={<LoadingState />}><DocumentosPage /></Suspense></PerfilRoute>} />,
           <Route key={`${perfil}-relatorios`} path={`${accessProfiles[perfil].basePath}/relatorios`} element={<PerfilRoute perfil={perfil} permission="relatorios"><Suspense fallback={<LoadingState />}><RelatoriosPage /></Suspense></PerfilRoute>} />,
@@ -104,6 +108,8 @@ export default function AppRoutes() {
       <Route path={routes.documentosCoordenador} element={<PerfilRoute perfil="COORDENADOR" permission="documentos"><Suspense fallback={<LoadingState label="Carregando documentos..." />}><DocumentosPage /></Suspense></PerfilRoute>} />
 
       {/* Dashboards por perfil */}
+      <Route path={routes.auditoriasCoordenador} element={<PerfilRoute perfil="COORDENADOR" permission="auditorias"><Suspense fallback={<LoadingState label="Carregando auditorias..." />}><AuditoriasPage /></Suspense></PerfilRoute>} />
+      <Route path="/administrador/administracao/auditorias" element={<PerfilRoute perfil="ADMINISTRADOR" permission="auditorias"><Suspense fallback={<LoadingState label="Carregando auditorias..." />}><AuditoriasPage /></Suspense></PerfilRoute>} />
       {(Object.keys(accessProfiles) as PerfilUsuario[]).map((perfil) => (
         <Route
           key={perfil}
