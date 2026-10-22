@@ -25,6 +25,9 @@ import PerfilEstudantePage from "../../pages/coordenador/estudantes/PerfilEstuda
 const RelatoriosPage = lazy(() => import("../../pages/coordenador/relatorios/RelatoriosPage"));
 const DocumentosPage = lazy(() => import("../../pages/coordenador/documentos/DocumentosPage"));
 
+const UsuariosPage = lazy(() => import("../../pages/coordenador/administracao/UsuariosPage"));
+const PermissoesPage = lazy(() => import("../../pages/coordenador/administracao/PermissoesPage"));
+
 type PerfilRouteProps = {
   perfil: PerfilUsuario;
   children?: ReactNode;
@@ -46,7 +49,7 @@ function PerfilRoute({
     return <NotFoundPage codigo={403} />;
   }
 
-  if (permission && !canAccess(usuario.perfil, permission)) {
+  if (permission && !canAccess(usuario, permission)) {
     return <NotFoundPage codigo={403} />;
   }
 
@@ -62,6 +65,15 @@ export default function AppRoutes() {
   return (
     <PageErrorBoundary key={location.pathname}>
     <Routes>
+      {(Object.keys(accessProfiles) as PerfilUsuario[]).flatMap(perfil => [
+        <Route key={`${perfil}-usuarios`} path={`${accessProfiles[perfil].basePath}/administracao/usuarios`} element={<PerfilRoute perfil={perfil} permission="usuarios"><Suspense fallback={<LoadingState />}><UsuariosPage /></Suspense></PerfilRoute>} />,
+        <Route key={`${perfil}-permissoes`} path={`${accessProfiles[perfil].basePath}/administracao/permissoes`} element={<PerfilRoute perfil={perfil} permission="permissoes"><Suspense fallback={<LoadingState />}><PermissoesPage /></Suspense></PerfilRoute>} />,
+        ...(perfil !== "COORDENADOR" ? [
+          <Route key={`${perfil}-documentos`} path={`${accessProfiles[perfil].basePath}/documentos`} element={<PerfilRoute perfil={perfil} permission="documentos"><Suspense fallback={<LoadingState />}><DocumentosPage /></Suspense></PerfilRoute>} />,
+          <Route key={`${perfil}-relatorios`} path={`${accessProfiles[perfil].basePath}/relatorios`} element={<PerfilRoute perfil={perfil} permission="relatorios"><Suspense fallback={<LoadingState />}><RelatoriosPage /></Suspense></PerfilRoute>} />,
+        ] : []),
+      ])}
+
       {/* Páginas públicas */}
       <Route path={routes.home} element={<HomePage />} />
       <Route path={routes.login} element={<LoginPage />} />

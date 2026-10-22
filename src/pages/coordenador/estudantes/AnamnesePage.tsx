@@ -230,6 +230,11 @@ function CampoSimNao({ titulo, valor, onChange }: SimNaoProps) {
 }
 
 export default function AnamnesePage() {
+  const [params] = useSearchParams();
+  return <AnamneseForm key={params.get("estudanteId") ?? "novo"} />;
+}
+
+function AnamneseForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const estudanteId = searchParams.get("estudanteId");
@@ -237,52 +242,18 @@ export default function AnamnesePage() {
 
   const [formulario, setFormulario] =
     useState<EstudanteRequest>(formularioVazio);
-  const [carregando, setCarregando] = useState(modoEdicao);
   const [salvando, setSalvando] = useState(false);
-  const [erro, setErro] = useState("");
+  const [erro, setErro] = useState(modoEdicao && (!Number.isInteger(Number(estudanteId)) || Number(estudanteId) <= 0) ? "O identificador do estudante \u00e9 inv\u00e1lido." : "");
   const [sucesso, setSucesso] = useState("");
 
   useEffect(() => {
-    if (!modoEdicao || estudanteId === null) {
-      setFormulario(formularioVazio);
-      setCarregando(false);
-      return;
-    }
-
     const id = Number(estudanteId);
-
-    if (!Number.isInteger(id) || id <= 0) {
-      setErro("O identificador do estudante é inválido.");
-      setCarregando(false);
-      return;
-    }
-
+    if (!modoEdicao || !Number.isInteger(id) || id <= 0) return;
     let ativo = true;
-
-    async function carregarEstudante() {
-      setCarregando(true);
-      setErro("");
-
-      try {
-        const estudante = await estudantesService.buscarPorId(id);
-
-        if (ativo) {
-          setFormulario(converterParaFormulario(estudante));
-        }
-      } catch {
-        if (ativo) {
-          setErro("Não foi possível carregar o estudante. Verifique a conexão e tente novamente.");
-        }
-      } finally {
-        if (ativo) setCarregando(false);
-      }
-    }
-
-    void carregarEstudante();
-
-    return () => {
-      ativo = false;
-    };
+    estudantesService.buscarPorId(id)
+      .then(estudante => { if (ativo) setFormulario(converterParaFormulario(estudante)); })
+      .catch(() => { if (ativo) setErro("N\u00e3o foi poss\u00edvel carregar o estudante. Verifique a conex\u00e3o e tente novamente."); });
+    return () => { ativo = false; };
   }, [estudanteId, modoEdicao]);
 
   function alterarCampo(

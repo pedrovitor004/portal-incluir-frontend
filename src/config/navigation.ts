@@ -1,4 +1,4 @@
-import type { PerfilUsuario } from "../types/auth";
+import type { PerfilUsuario, Usuario } from "../types/auth";
 import { canAccess, type Permission } from "./access";
 
 export type NavigationItem = {
@@ -7,6 +7,8 @@ export type NavigationItem = {
   icon: "home" | "students" | "clipboard" | "document" | "chart" | "users" | "shield";
   groupOnly?: boolean;
   permission?: Permission;
+  permissionsAny?: Permission[];
+  section?: "Professores" | "Equipe multidisciplinar";
   profiles?: PerfilUsuario[];
   children?: NavigationItem[];
 };
@@ -18,24 +20,21 @@ const navigation: NavigationItem[] = [
       { label: "Plano de Ação", slug: "plano-acao", icon: "clipboard", permission: "planos.gerar" },
       { label: "Anamnese", slug: "anamnese", icon: "clipboard", permission: "anamnese" },
       { label: "PEI", slug: "pei", icon: "document", permission: "pei.consultar" },
-      { label: "Adaptações pedagógicas", slug: "adaptacoes", icon: "clipboard", permission: "pedagogico.editar", profiles: ["PROFESSOR"] },
-      { label: "Atendimentos", slug: "atendimentos", icon: "clipboard", permission: "suporte.registrar", profiles: ["EQUIPE_MULTIDISCIPLINAR"] },
     ]
   },
   {
     label: "Acompanhamento pedagógico", slug: "pedagogico", icon: "clipboard", groupOnly: true,
-    permission: "pedagogico.consultar", profiles: ["COORDENADOR", "ADMINISTRADOR"], children: [
-      { label: "Adaptações pedagógicas", slug: "adaptacoes", icon: "clipboard", permission: "pedagogico.consultar" },
+    section: "Professores", children: [
+      { label: "Adaptações pedagógicas", slug: "adaptacoes", icon: "clipboard", permissionsAny: ["pedagogico.consultar", "pedagogico.editar"] },
       { label: "Conteúdo acadêmico", slug: "conteudo-academico", icon: "document", permission: "academico.gerar" },
     ],
   },
-  { label: "Atendimentos", slug: "atendimentos", icon: "clipboard", permission: "suporte.consultar", profiles: ["COORDENADOR", "ADMINISTRADOR"] },
-  { label: "Conteúdo acadêmico", slug: "conteudo-academico", icon: "document", permission: "academico.gerar", profiles: ["PROFESSOR"] },
+  { label: "Atendimentos", slug: "atendimentos", icon: "clipboard", section: "Equipe multidisciplinar", permissionsAny: ["suporte.consultar", "suporte.registrar"] },
   { label: "Documentos", slug: "documentos", icon: "document", permission: "documentos" },
   { label: "Relatórios", slug: "relatorios", icon: "chart", permission: "relatorios" },
   {
     label: "Administração", slug: "administracao", icon: "shield", groupOnly: true,
-    permission: "usuarios", profiles: ["COORDENADOR", "ADMINISTRADOR"], children: [
+    children: [
       { label: "Usuários", slug: "administracao/usuarios", icon: "users", permission: "usuarios" },
       { label: "Permissões", slug: "administracao/permissoes", icon: "shield", permission: "permissoes" },
       { label: "Auditorias", slug: "administracao/auditorias", icon: "clipboard", permission: "auditorias" },
@@ -43,13 +42,15 @@ const navigation: NavigationItem[] = [
   },
 ];
 
-export function getNavigation(perfil: PerfilUsuario): NavigationItem[] {
+export function getNavigation(conta: PerfilUsuario | Usuario): NavigationItem[] {
+  const perfil = typeof conta === "string" ? conta : conta.perfil;
   const visible = (item: NavigationItem) =>
     (!item.profiles || item.profiles.includes(perfil)) &&
-    (!item.permission || canAccess(perfil, item.permission));
+    (!item.permission || canAccess(conta, item.permission)) &&
+    (!item.permissionsAny || item.permissionsAny.some(permission => canAccess(conta, permission)));
   const estudantesLabel = perfil === "PROFESSOR" ? "Meus estudantes"
     : perfil === "EQUIPE_MULTIDISCIPLINAR" ? "Estudantes acompanhados" : "Estudantes";
-  return navigation.filter(visible)
+  return navigation.filter(item => visible(item) && (!item.groupOnly || item.children?.some(visible)))
     .map(item => ({
       ...item,
       label: item.slug === "estudantes" ? estudantesLabel : item.label,

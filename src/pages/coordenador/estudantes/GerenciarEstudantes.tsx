@@ -105,7 +105,7 @@ export default function GerenciarEstudantes({
   const erro = erroInicial || erroApi;
 
   const [nome, setNome] = useState("");
-  const [matricula, setMatricula] = useState("");
+  const [matricula] = useState("");
   const [curso, setCurso] = useState("");
   const [ano, setAno] = useState("");
   const [deficiencia, setDeficiencia] = useState("");
@@ -279,21 +279,7 @@ export default function GerenciarEstudantes({
     });
   }
 
-  function limparFiltros() {
-    setNome("");
-    setMatricula("");
-    setCurso("");
-    setAno("");
-    setDeficiencia("");
 
-    setFiltrosAplicados({
-      nome: "",
-      matricula: "",
-      curso: "",
-      ano: "",
-      deficiencia: "",
-    });
-  }
 
 
 return (

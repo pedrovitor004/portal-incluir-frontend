@@ -25,3 +25,8 @@ dist-ssr
 .env
 .env.*
 !.env.example
+# CÛpia tempor·ria usada para validar o backend
+/tmp/backend-check/
+
+# PDFs e imagens gerados nas verifica√ß√µes locais
+/tmp/pdfs/

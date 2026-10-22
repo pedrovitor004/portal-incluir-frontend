@@ -1,3 +1,5 @@
+import { areasEquipe } from "../../config/profissionais";
+import ProfessionalCoursesField from "../../components/common/ProfessionalCoursesField";
 import AccessibilitySymbols from "../../components/auth/AccessibilitySymbols";
 import LoadingState from "../../components/common/LoadingState";
 import { useAuth } from "../../hooks/useAuth";
@@ -5,7 +7,7 @@ import { destinoUsuario, routes } from "../../config/routes";
 import { mensagemErro } from "../../services/apiError";
 import type { CadastroRequest } from "../../types/auth";
 import { Link, useNavigate } from "react-router";
-import { useState, type FormEvent } from "react";
+import { Fragment, useState, type FormEvent } from "react";
 import logoClai from "../../assets/logos/logo-clai.png";
 import logoIfpb from "../../assets/logos/logo-ifpb.png";
 import logoPortal from "../../assets/logos/logo-portal.png";
@@ -45,7 +47,6 @@ const formFieldsByType: Record<BondType, Field[]> = {
     { name: "telefone", label: "Telefone", type: "tel", placeholder: "(00) 00000-0000" },
     { name: "dataNascimento", label: "Data de nascimento", type: "date" },
     { name: "matricula", label: "Matrícula", type: "text", placeholder: "Número da matrícula" },
-    { name: "disciplina", label: "Disciplina", type: "text", placeholder: "Disciplina lecionada" },
     { name: "setor", label: "Setor", type: "text", placeholder: "Setor de atuação" },
   ],
   coordinator: [
@@ -112,16 +113,16 @@ function SectionTitle({ title, description }: { title: string; description: stri
 function FormInput({ field }: { field: Field }) {
   return (
     <label className="flex min-w-0 flex-col gap-1">
-      <span className="text-xs font-medium text-primary">{field.label}{["telefone", "dataNascimento"].includes(field.name) ? " (opcional)" : " (obrigatório)"}</span>
-      <input
+      <span className="text-xs font-medium text-primary">{field.label}{["telefone", "dataNascimento", "disciplina"].includes(field.name) ? " (opcional)" : " (obrigatório)"}</span>
+      {field.name === "areaAtuacao" ? <select name={field.name} required defaultValue="" className="h-9 min-w-0 w-full rounded-lg border border-emerald-300 bg-white px-3 text-sm text-slate-700 outline-none focus:border-primary focus:ring-4 focus:ring-emerald-100"><option value="">Selecione a área de atuação</option>{areasEquipe.map(area => <option key={area} value={area}>{area}</option>)}</select> : <input
         type={field.type}
         name={field.name}
         autoComplete={({ nome: "name", email: "email", telefone: "tel", dataNascimento: "bday" } as Record<string, string>)[field.name]}
-        required={field.name !== "telefone" && field.name !== "dataNascimento"}
+        required={!["telefone", "dataNascimento", "disciplina"].includes(field.name)}
         maxLength={field.name === "matricula" ? 30 : field.name === "telefone" ? 20 : field.name === "periodoIngresso" ? 20 : field.name === "areaAtuacao" ? 100 : ["nome", "email", "curso"].includes(field.name) ? 150 : 120}
         placeholder={field.placeholder}
         className="h-9 min-w-0 w-full rounded-lg border border-emerald-300 bg-white px-3 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition hover:border-emerald-400 focus:border-primary focus:ring-4 focus:ring-emerald-100"
-      />
+      />}
     </label>
   );
 }
@@ -129,6 +130,7 @@ function FormInput({ field }: { field: Field }) {
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { register } = useAuth();
+  const [cursosAtuacao, setCursosAtuacao] = useState<string[]>([]);
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
   async function cadastrar(event: FormEvent<HTMLFormElement>) {
@@ -142,6 +144,7 @@ export default function RegisterPage() {
       event.currentTarget.querySelector<HTMLInputElement>('[name="confirmPassword"]')?.focus();
       return;
     }
+    if (bondType === "teacher" && !cursosAtuacao.length) { setErro("Selecione o curso de atuação."); return; }
     const comum = {
       nome: String(form.nome || ""), email: String(form.email || ""), senha: String(form.password || ""),
       matricula: String(form.matricula || ""), telefone: String(form.telefone || ""),
@@ -150,7 +153,7 @@ export default function RegisterPage() {
     };
     let request: CadastroRequest;
     switch (bondType) {
-      case "teacher": request = { ...comum, perfil: "PROFESSOR", disciplina: String(form.disciplina || "") }; break;
+      case "teacher": request = { ...comum, perfil: "PROFESSOR", disciplina: String(form.disciplina || ""), cursosAtuacao }; break;
       case "coordinator": request = { ...comum, perfil: "COORDENADOR", cargo: String(form.cargo || "") }; break;
       case "multidisciplinary": request = { ...comum, perfil: "EQUIPE_MULTIDISCIPLINAR", cargo: String(form.cargo || ""), areaAtuacao: String(form.areaAtuacao || "") }; break;
     }
@@ -190,7 +193,7 @@ export default function RegisterPage() {
       </header>
 
       <section className="grid flex-1 w-full grid-cols-1 lg:grid-cols-[46.8%_53.2%]">
-        <aside className="hidden items-center bg-primary px-6 py-10 text-white sm:px-10 lg:flex lg:px-[60px]">
+        <aside className="hidden min-w-0 items-center bg-primary px-6 py-6 text-white sm:px-10 lg:flex lg:px-[60px]">
           <div className="flex w-full flex-col items-start">
             <div className="relative aspect-[685/292] w-[270px] max-w-full shrink-0 self-start overflow-hidden">
               <img
@@ -201,17 +204,17 @@ export default function RegisterPage() {
               />
             </div>
 
-            <h2 className="mt-10 max-w-[390px] text-[34px] font-semibold leading-[1.1] tracking-tight">
+            <h2 className="mt-6 max-w-[390px] text-[34px] font-semibold leading-[1.1] tracking-tight">
               Bem-vindo(a) ao Portal<br />Incluir!
             </h2>
 
-            <p className="mt-9 max-w-[500px] text-lg font-normal leading-[1.4] text-white/90">
+            <p className="mt-6 max-w-[500px] text-lg font-normal leading-[1.4] text-white/90">
               Acompanhamento educacional em um ambiente simples, seguro e
               organizado, conectando pessoas e promovendo a inclusão em cada
               etapa da jornada acadêmica.
             </p>
 
-            <div className="mt-[72px] flex w-full flex-col items-start gap-7">
+            <div className="mt-8 flex w-full flex-col items-start gap-4">
               <div className="text-xs font-semibold leading-relaxed text-white/90">
                 CLAI • Instituto Federal da Paraíba
               </div>
@@ -220,7 +223,7 @@ export default function RegisterPage() {
           </div>
         </aside>
 
-        <div className="flex items-center justify-center px-4 py-4 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center justify-center px-4 py-3 sm:px-6 lg:px-8">
           <div className="w-full max-w-[560px]">
             <section className="flex flex-col rounded-2xl border border-emerald-100 bg-white p-5 shadow-[0_12px_40px_rgba(50,93,58,0.08)] sm:p-5">
               <SectionTitle
@@ -239,7 +242,7 @@ export default function RegisterPage() {
                           name="perfil"
                           value={option.value}
                           checked={bondType === option.value}
-                          onChange={() => { setBondType(option.value); setErro(""); setPasswordMismatch(false); }}
+                          onChange={() => { setBondType(option.value); setCursosAtuacao([]); setErro(""); setPasswordMismatch(false); }}
                           className="h-4 w-4 shrink-0 cursor-pointer accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                         />
                         <ProfileIcon type={option.value} />
@@ -255,8 +258,11 @@ export default function RegisterPage() {
                   {erro && <p id="register-error" role="alert" className="text-sm text-red-700">{erro}</p>}
                   <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
                     {formFieldsByType[bondType].map((field) => (
-                      <FormInput key={field.name} field={field} />
+                      <Fragment key={field.name}>
+                        <FormInput field={field} />
+                      </Fragment>
                     ))}
+                    {bondType === "teacher" && <ProfessionalCoursesField value={cursosAtuacao} onChange={setCursosAtuacao} disabled={enviando} />}
                   </div>
 
                   <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">

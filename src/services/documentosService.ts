@@ -1,10 +1,12 @@
+import { userSession } from "./sessionStorage";
+import { canAccess } from "../config/access";
 import { acaoPermitida, type AcaoDocumento } from "../config/documentActions";
 import { endpoints } from "../config/endpoints";
 import type { ConsultaDocumentos, Documento } from "../types/documento";
 import { mensagemErro } from "./apiError";
 import { http } from "./http";
 
-interface PlanoResponse {
+export interface PlanoResponse {
   adaptacoesPedagogicas?: {
     componenteCurricular?: string;
     professorNome?: string;
@@ -118,6 +120,8 @@ export const documentosService = {
     return consulta;
   },
   async executar(documento: Documento, acao: AcaoDocumento): Promise<Documento | null> {
+    const conta = userSession.read();
+    if (!conta || !canAccess(conta, "documentos.gerenciar")) throw new Error("Você não tem permissão para gerenciar documentos.");
     if (!acaoPermitida(documento, acao)) throw new Error("Esta ação não está disponível para o estado atual do documento.");
     const fonte = fontes.find(f => f.tipo === documento.tipo)!;
     const url = `${fonte.endpoint}/${documento.id}`;
