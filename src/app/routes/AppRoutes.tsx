@@ -70,6 +70,9 @@ export default function AppRoutes() {
         <Route key={`${perfil}-usuarios`} path={`${accessProfiles[perfil].basePath}/administracao/usuarios`} element={<PerfilRoute perfil={perfil} permission="usuarios"><Suspense fallback={<LoadingState />}><UsuariosPage /></Suspense></PerfilRoute>} />,
         <Route key={`${perfil}-permissoes`} path={`${accessProfiles[perfil].basePath}/administracao/permissoes`} element={<PerfilRoute perfil={perfil} permission="permissoes"><Suspense fallback={<LoadingState />}><PermissoesPage /></Suspense></PerfilRoute>} />,
         ...(["PROFESSOR", "EQUIPE_MULTIDISCIPLINAR"].includes(perfil) ? [
+          <Route key={`${perfil}-estudantes`} path={`${accessProfiles[perfil].basePath}/estudantes`} element={<PerfilRoute perfil={perfil} permission="estudantes.consultar"><GerenciarEstudantes /></PerfilRoute>} />,
+          <Route key={`${perfil}-perfil`} path={`${accessProfiles[perfil].basePath}/estudantes/:id`} element={<PerfilRoute perfil={perfil} permission="estudantes.consultar"><PerfilEstudantePage /></PerfilRoute>} />,
+          <Route key={`${perfil}-anamnese`} path={`${accessProfiles[perfil].basePath}/anamnese`} element={<PerfilRoute perfil={perfil} permission="anamnese"><AnamnesePage /></PerfilRoute>} />,
           <Route key={`${perfil}-auditorias`} path={`${accessProfiles[perfil].basePath}/administracao/auditorias`} element={<PerfilRoute perfil={perfil} permission="auditorias"><Suspense fallback={<LoadingState />}><AuditoriasPage /></Suspense></PerfilRoute>} />,
         ] : []),
         ...(perfil !== "COORDENADOR" ? [
@@ -118,6 +121,9 @@ export default function AppRoutes() {
         />
       ))}
 
+      <Route path="/administrador/estudantes" element={<PerfilRoute perfil="ADMINISTRADOR" permission="estudantes.consultar"><GerenciarEstudantes /></PerfilRoute>} />
+      <Route path="/administrador/estudantes/:id" element={<PerfilRoute perfil="ADMINISTRADOR" permission="estudantes.consultar"><PerfilEstudantePage /></PerfilRoute>} />
+      <Route path="/administrador/anamnese" element={<PerfilRoute perfil="ADMINISTRADOR" permission="anamnese"><AnamnesePage /></PerfilRoute>} />
       {/* Gerenciamento de estudantes */}
       <Route
         path={routes.estudantesCoordenador}

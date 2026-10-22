@@ -3,6 +3,15 @@ import type { EstudanteResponse } from "../types/estudante";
 import type { EstudanteRequest } from "../types/estudante";
 
 export const estudantesService = {
+  async ativar(id: number): Promise<EstudanteResponse> {
+    return (await http.post<EstudanteResponse>(`/estudantes/${id}/ativar`)).data;
+  },
+  async inativar(id: number): Promise<EstudanteResponse> {
+    return (await http.post<EstudanteResponse>(`/estudantes/${id}/inativar`)).data;
+  },
+  async concluir(id: number, dataConclusao: string): Promise<EstudanteResponse> {
+    return (await http.post<EstudanteResponse>(`/estudantes/${id}/concluir`, { dataConclusao })).data;
+  },
   async listarTodos(): Promise<EstudanteResponse[]> {
     const response = await http.get<EstudanteResponse[]>("/estudantes");
     return response.data;
