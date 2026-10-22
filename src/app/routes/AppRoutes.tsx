@@ -28,6 +28,8 @@ const AuditoriasPage = lazy(() => import("../../pages/coordenador/auditorias/Aud
 
 const UsuariosPage = lazy(() => import("../../pages/coordenador/administracao/UsuariosPage"));
 const PermissoesPage = lazy(() => import("../../pages/coordenador/administracao/PermissoesPage"));
+const GestaoAcompanhamentoPage = lazy(() => import("../../pages/coordenador/acompanhamento/GestaoAcompanhamentoPage"));
+const ResponsaveisPage = lazy(() => import("../../pages/coordenador/acompanhamento/ResponsaveisPage"));
 
 type PerfilRouteProps = {
   perfil: PerfilUsuario;
@@ -66,6 +68,10 @@ export default function AppRoutes() {
   return (
     <PageErrorBoundary key={location.pathname}>
     <Routes>
+      <Route path="/coordenador/adaptacoes" element={<PerfilRoute perfil="COORDENADOR" permission="pedagogico.consultar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="adaptacoes" visao="adaptacoes" /></Suspense></PerfilRoute>} />
+      <Route path="/coordenador/conteudo-academico" element={<PerfilRoute perfil="COORDENADOR" permission="academico.gerar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="conteudo" visao="conteudo" /></Suspense></PerfilRoute>} />
+      <Route path="/coordenador/atendimentos" element={<PerfilRoute perfil="COORDENADOR" permission="suporte.consultar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="atendimentos" visao="atendimentos" /></Suspense></PerfilRoute>} />
+      <Route path="/coordenador/responsaveis" element={<PerfilRoute perfil="COORDENADOR" permission="estudantes.vincular"><Suspense fallback={<LoadingState />}><ResponsaveisPage /></Suspense></PerfilRoute>} />
       {(Object.keys(accessProfiles) as PerfilUsuario[]).flatMap(perfil => [
         <Route key={`${perfil}-usuarios`} path={`${accessProfiles[perfil].basePath}/administracao/usuarios`} element={<PerfilRoute perfil={perfil} permission="usuarios"><Suspense fallback={<LoadingState />}><UsuariosPage /></Suspense></PerfilRoute>} />,
         <Route key={`${perfil}-permissoes`} path={`${accessProfiles[perfil].basePath}/administracao/permissoes`} element={<PerfilRoute perfil={perfil} permission="permissoes"><Suspense fallback={<LoadingState />}><PermissoesPage /></Suspense></PerfilRoute>} />,
