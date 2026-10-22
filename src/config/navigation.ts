@@ -30,6 +30,7 @@ const navigation: NavigationItem[] = [
     ],
   },
   { label: "Atendimentos", slug: "atendimentos", icon: "clipboard", section: "Equipe multidisciplinar", permissionsAny: ["suporte.consultar", "suporte.registrar"] },
+  { label: "Responsáveis pelo acompanhamento", slug: "responsaveis", icon: "users", section: "Equipe multidisciplinar", profiles: ["COORDENADOR"], permission: "estudantes.vincular" },
   { label: "Documentos", slug: "documentos", icon: "document", permission: "documentos" },
   { label: "Relatórios", slug: "relatorios", icon: "chart", permission: "relatorios" },
   {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { estudantesService } from "../../../services/estudantesService";
 import {
   mapearEstudante,
@@ -9,12 +9,16 @@ import { AgGridReact } from "ag-grid-react";
 import {
   AllCommunityModule,
   ModuleRegistry,
-  themeQuartz,
   type ColDef,
   type ICellRendererParams,
 } from "ag-grid-community";
 import { useNavigate } from "react-router";
-import { routes } from "../../../config/routes";
+import { useAuth } from "../../../hooks/useAuth";
+import { accessProfiles, canAccess } from "../../../config/access";
+import { confirmarCadastroEstudante } from "../../../services/estudanteConfirmation";
+import { portalGridTheme, portalGridLocale } from "../../../config/gridTheme";
+import LoadingState from "../../../components/common/LoadingState";
+import StudentPanel from "./components/StudentPanel";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -26,13 +30,7 @@ type Props = {
   onNovoEstudante?: () => void;
 };
 
-const temaEstudantes = themeQuartz.withParams({
-  accentColor: "#16a34a",
-  spacing: 8,
-  borderRadius: 8,
-  headerHeight: 48,
-  rowHeight: 52,
-});
+const temaEstudantes = portalGridTheme.withParams({ rowHeight: 52 });
 
 export default function GerenciarEstudantes({
   estudantes: estudantesIniciais,
@@ -45,9 +43,16 @@ export default function GerenciarEstudantes({
   const [carregandoApi, setCarregandoApi] = useState(true);
   const [erroApi, setErroApi] = useState("");
   const navigate = useNavigate();
+  const { usuario } = useAuth();
+  const basePath = accessProfiles[usuario?.perfil ?? "COORDENADOR"].basePath;
+  const podeEditar = !!usuario && canAccess(usuario, "estudantes.editar");
+  const [painel, setPainel] = useState<{ estudante: Estudante; modo: "acoes" | "pendencias" } | null>(null);
+  const [alteracoes, setAlteracoes] = useState<Record<number, Estudante>>({});
+  const [confirmandoCadastro, setConfirmandoCadastro] = useState(false);
+  const cadastroPendente = useRef(false);
 
   function abrirAnamnese(estudante?: Estudante) {
-    const destino = routes.anamneseCoordenador;
+    const destino = `${basePath}/anamnese`;
 
     navigate(
       estudante
@@ -56,15 +61,18 @@ export default function GerenciarEstudantes({
     );
   }
 
-    function abrirPerfilEstudante(estudante: Estudante) {
-      navigate(
-        routes.perfilEstudante.replace(
-          ":id",
-          encodeURIComponent(String(estudante.id)),
-        ),
-      );
-    }
-
+  const abrirPerfilEstudante = useCallback((estudante: Estudante) => {
+    if (onAbrirEstudante) onAbrirEstudante(estudante);
+    else navigate(`${basePath}/estudantes/${encodeURIComponent(String(estudante.id))}`);
+  }, [navigate, basePath, onAbrirEstudante]);
+  async function novoEstudante() {
+    if (!podeEditar || cadastroPendente.current) return;
+    cadastroPendente.current = true; setConfirmandoCadastro(true);
+    try {
+      if (!await confirmarCadastroEstudante("abrir")) return;
+      if (onNovoEstudante) onNovoEstudante(); else abrirAnamnese();
+    } finally { cadastroPendente.current = false; setConfirmandoCadastro(false); }
+  }
   useEffect(() => {
     let ativo = true;
 
@@ -81,7 +89,7 @@ export default function GerenciarEstudantes({
       } catch (error) {
         if (ativo) {
           setErroApi(
-            "Não foi possível carregar os estudantes. Verifique se o backend está em execução.",
+            "Não foi possível carregar os estudantes. Verifique sua conexão e tente novamente.",
           );
         }
 
@@ -100,68 +108,11 @@ export default function GerenciarEstudantes({
     };
   }, []);
 
-  const estudantes = estudantesIniciais ?? estudantesApi;
+  const estudantes = useMemo(() => (estudantesIniciais ?? estudantesApi).map(e => alteracoes[e.id] ?? e), [estudantesIniciais, estudantesApi, alteracoes]);
   const carregando = carregandoInicial || carregandoApi;
   const erro = erroInicial || erroApi;
 
-  const [nome, setNome] = useState("");
-  const [matricula] = useState("");
-  const [curso, setCurso] = useState("");
-  const [ano, setAno] = useState("");
-  const [deficiencia, setDeficiencia] = useState("");
-
-  const [filtrosAplicados, setFiltrosAplicados] = useState({
-    nome: "",
-    matricula: "",
-    curso: "",
-    ano: "",
-    deficiencia: "",
-  });
-
-  const cursos = useMemo(
-    () =>
-      [...new Set(estudantes.map((e) => e.curso).filter(Boolean))].sort(),
-    [estudantes],
-  );
-
-  const anos = useMemo(
-    () =>
-      [...new Set(estudantes.map((e) => e.ano).filter(Boolean))].sort(),
-    [estudantes],
-  );
-
-  const deficiencias = useMemo(
-    () =>
-      [
-        ...new Set(
-          estudantes.map((e) => e.deficiencia).filter(Boolean),
-        ),
-      ].sort(),
-    [estudantes],
-  );
-
-    const estudantesFiltrados = useMemo(() => {
-      const normalizar = (valor: string) =>
-        valor.toLocaleLowerCase("pt-BR").trim();
-
-      return estudantes.filter((estudante) => {
-        const termoBusca = normalizar(filtrosAplicados.nome);
-
-        const correspondeNomeOuMatricula =
-          normalizar(estudante.nome).includes(termoBusca) ||
-          normalizar(estudante.matricula).includes(termoBusca);
-
-        return (
-          correspondeNomeOuMatricula &&
-          (!filtrosAplicados.curso ||
-            estudante.curso === filtrosAplicados.curso) &&
-          (!filtrosAplicados.ano ||
-            estudante.ano === filtrosAplicados.ano) &&
-          (!filtrosAplicados.deficiencia ||
-            estudante.deficiencia === filtrosAplicados.deficiencia)
-        );
-      });
-  }, [estudantes, filtrosAplicados]);
+  const [quantidadeVisivel, setQuantidadeVisivel] = useState(0);
 
   const columnDefs = useMemo<ColDef<Estudante>[]>(
     () => [
@@ -227,60 +178,33 @@ export default function GerenciarEstudantes({
         },
       },
       {
-        headerName: "Ações",
-        colId: "acoes",
-        minWidth: 110,
-        maxWidth: 130,
-        sortable: false,
-        filter: false,
-        resizable: false,
+        headerName: "Ações", colId: "acoes", pinned: "right", width: 208, minWidth: 208, maxWidth: 208,
+        sortable: false, filter: false, floatingFilter: false, resizable: false,
         cellRenderer: (params: ICellRendererParams<Estudante>) => {
           const estudante = params.data;
-
           if (!estudante) return null;
-
-          return (
-            <button
-              type="button"
-              onClick={() => {
-                if (onAbrirEstudante) {
-                  onAbrirEstudante(estudante);
-                } else {
-                  abrirPerfilEstudante(estudante);
-                }
-              }}
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-green-700 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Abrir
-            </button>
-          );
+          const classe = "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-green-100 bg-green-50 text-green-800 transition hover:border-green-300 hover:bg-green-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700";
+          return <div className="flex h-full items-center gap-2">
+            <button type="button" title="Abrir perfil" aria-label={`Abrir perfil de ${estudante.nome}`} onClick={() => abrirPerfilEstudante(estudante)} className={classe}><svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button type="button" title="Etapas e pendências" aria-label={`Ver etapas e pendências de ${estudante.nome}`} onClick={() => setPainel({ estudante, modo: "pendencias" })} className={classe}><svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 4H5v17h14V4h-4M9 3h6v3H9M8 11l1 1 2-2M13 11h3M8 16l1 1 2-2M13 16h3"/></svg></button>
+            {podeEditar && <button type="button" title="Gerenciar situação" aria-label={`Gerenciar situação de ${estudante.nome}`} onClick={() => setPainel({ estudante, modo: "acoes" })} className={classe}><svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h10m4 0h2M4 17h2m4 0h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>}
+          </div>;
         },
-      },
-    ],
-    [onAbrirEstudante],
+      },    ],
+    [abrirPerfilEstudante, podeEditar],
   );
 
   const defaultColDef = useMemo<ColDef<Estudante>>(
     () => ({
       sortable: true,
       resizable: true,
-      suppressHeaderMenuButton: true,
+      filter: "agTextColumnFilter",
+      floatingFilter: true,
+      cellDataType: false,
+      filterParams: { debounceMs: 200 },
     }),
     [],
   );
-
-  function aplicarFiltros() {
-    setFiltrosAplicados({
-      nome,
-      matricula,
-      curso,
-      ano,
-      deficiencia,
-    });
-  }
-
-
-
 
 return (
   <section className="min-h-full w-full bg-[#f3f6f1] px-1 py-2">
@@ -288,164 +212,19 @@ return (
       {/* Cabeçalho */}
       <header>
         <h1 className="text-2xl font-bold leading-tight text-primary sm:text-[28px]">
-          Gerenciar estudantes
+          {usuario?.perfil === "PROFESSOR" ? "Meus estudantes" : usuario?.perfil === "EQUIPE_MULTIDISCIPLINAR" ? "Estudantes acompanhados" : "Gerenciar estudantes"}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Consulta, filtros e acesso ao perfil completo do estudante.
+          {usuario?.perfil === "PROFESSOR" || usuario?.perfil === "EQUIPE_MULTIDISCIPLINAR" ? "Consulte os estudantes vinculados pela coordenação ao seu acompanhamento." : "Consulta, filtros e acesso ao perfil completo do estudante."}
         </p>
       </header>
 
-      {/* Filtros */}
-      <div className="rounded-md border border-[#d9e2d9] bg-white px-4 py-3">
-
-        <form
-          className="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:grid-cols-12"
-          onSubmit={(event) => {
-            event.preventDefault();
-            aplicarFiltros();
-          }}
-        >
-          <div className="sm:col-span-2 lg:col-span-3">
-            <label
-              htmlFor="filtro-busca"
-              className="mb-1 block text-[11px] font-semibold text-gray-800"
-            >
-              Nome ou matrícula
-            </label>
-            <input
-              id="filtro-busca"
-              value={nome}
-              onChange={(event) => setNome(event.target.value)}
-              placeholder="Buscar estudante"
-              className="h-8 w-full rounded border border-[#dce2dc] px-2 text-xs outline-none transition focus:border-green-600 focus:ring-1 focus:ring-green-100"
-            />
-          </div>
-
-          <div className="lg:col-span-2">
-            <label
-              htmlFor="filtro-curso"
-              className="mb-1 block text-[11px] font-semibold text-gray-800"
-            >
-              Curso
-            </label>
-            <select
-              id="filtro-curso"
-              value={curso}
-              onChange={(event) => setCurso(event.target.value)}
-              className="h-8 w-full rounded border border-[#dce2dc] bg-white px-2 text-xs outline-none focus:border-green-600"
-            >
-              <option value="">Todos</option>
-              {cursos.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="lg:col-span-1">
-            <label
-              htmlFor="filtro-ano"
-              className="mb-1 block text-[11px] font-semibold text-gray-800"
-            >
-              Ano
-            </label>
-            <select
-              id="filtro-ano"
-              value={ano}
-              onChange={(event) => setAno(event.target.value)}
-              className="h-8 w-full rounded border border-[#dce2dc] bg-white px-2 text-xs outline-none focus:border-green-600"
-            >
-              <option value="">Todos</option>
-              {anos.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="lg:col-span-2">
-            <label
-              htmlFor="filtro-deficiencia"
-              className="mb-1 block text-[11px] font-semibold text-gray-800"
-            >
-              Deficiência
-            </label>
-            <select
-              id="filtro-deficiencia"
-              value={deficiencia}
-              onChange={(event) => setDeficiencia(event.target.value)}
-              className="h-8 w-full rounded border border-[#dce2dc] bg-white px-2 text-xs outline-none focus:border-green-600"
-            >
-              <option value="">Todas</option>
-              {deficiencias.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4 lg:justify-end">
-            <button
-              type="submit"
-              className="inline-flex h-8 items-center justify-center gap-2 rounded bg-[#36a653] px-3 text-xs font-semibold text-white transition hover:bg-[#278944]"
-            >
-              Filtrar
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M4 7h10" />
-                <path d="M18 7h2" />
-                <path d="M4 17h2" />
-                <path d="M10 17h10" />
-                <circle cx="16" cy="7" r="2" />
-                <circle cx="8" cy="17" r="2" />
-              </svg>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (onNovoEstudante) {
-                  onNovoEstudante();
-                } else {
-                  abrirAnamnese();
-                }
-              }}
-              className="inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded border border-[#d4dfd4] bg-white px-3 text-xs font-semibold text-[#14532d] transition hover:bg-[#f3f8f3] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Novo estudante
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="3" />
-                <path d="M12 8v8" />
-                <path d="M8 12h8" />
-              </svg>
-            </button>
-          </div>
-        </form>
-      </div>
+      {podeEditar && usuario && canAccess(usuario, "anamnese") && <div className="flex justify-end">
+        <button type="button" disabled={confirmandoCadastro} onClick={() => void novoEstudante()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-50">
+          <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="9" cy="8" r="4"/><path d="M2 21v-2a7 7 0 0 1 14 0v2M19 7v6m-3-3h6"/></svg>
+          Novo estudante
+        </button>
+      </div>}
 
       {erro && (
         <div
@@ -463,14 +242,17 @@ return (
             Lista de estudantes
           </h2>
           <span className="text-xs text-gray-500">
-            {estudantesFiltrados.length} estudante(s)
+            {quantidadeVisivel === estudantes.length ? estudantes.length : `${quantidadeVisivel} de ${estudantes.length}`} estudante(s)
           </span>
         </div>
 
         <div className="w-full" style={{ height: 520 }}>
           <AgGridReact<Estudante>
             theme={temaEstudantes}
-            rowData={estudantesFiltrados}
+            rowData={estudantes}
+            onModelUpdated={({ api }) => setQuantidadeVisivel(api.getDisplayedRowCount())}
+            onFilterChanged={({ api }) => api.paginationGoToFirstPage()}
+            loadingOverlayComponent={() => <LoadingState compact />}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
             getRowId={(params) => String(params.data.id)}
@@ -478,22 +260,12 @@ return (
             pagination
             paginationPageSize={10}
             paginationPageSizeSelector={[10, 20, 50]}
-            localeText={{
-              noRowsToShow: "Nenhum estudante encontrado.",
-              loadingOoo: "Carregando...",
-              page: "Página",
-              of: "de",
-              to: "até",
-              first: "Primeira",
-              last: "Última",
-              next: "Próxima",
-              previous: "Anterior",
-              pageSizeSelectorLabel: "Itens por página:",
-            }}
+            localeText={{ ...portalGridLocale, noRowsToShow: "Nenhum estudante encontrado.", loadingOoo: "Consultando dados..." }}
           />
         </div>
       </div>
     </div>
+    {painel && <StudentPanel key={`${painel.estudante.id}-${painel.modo}`} estudante={painel.estudante} modo={painel.modo} onClose={() => setPainel(null)} onUpdate={resposta => setAlteracoes(anterior => ({ ...anterior, [resposta.id]: mapearEstudante(resposta) }))} onPerfil={() => { setPainel(null); abrirPerfilEstudante(painel.estudante); }} onCadastro={() => { setPainel(null); abrirAnamnese(painel.estudante); }} />}
   </section>
 );
 }
