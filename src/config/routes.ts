@@ -13,6 +13,7 @@ export const routes = {
   estudantesCoordenador: "/coordenador/estudantes",
   anamneseCoordenador: "/coordenador/anamnese",
   perfilEstudante: "/coordenador/estudantes/:id",
+  planoAcaoCoordenador: "/coordenador/plano-acao",
   relatoriosCoordenador: "/coordenador/relatorios",
   documentosCoordenador: "/coordenador/documentos",
   auditoriasCoordenador: "/coordenador/administracao/auditorias",

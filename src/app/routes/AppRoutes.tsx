@@ -21,6 +21,7 @@ import { institutionalDocuments } from "../../config/institutionalDocuments";
 import GerenciarEstudantes from "../../pages/coordenador/estudantes/GerenciarEstudantes";
 import AnamnesePage from "../../pages/coordenador/estudantes/AnamnesePage";
 import PerfilEstudantePage from "../../pages/coordenador/estudantes/PerfilEstudantePage";
+import PlanoAcaoPage from "../../pages/coordenador/estudantes/PlanoAcaoPage";
 
 const RelatoriosPage = lazy(() => import("../../pages/coordenador/relatorios/RelatoriosPage"));
 const DocumentosPage = lazy(() => import("../../pages/coordenador/documentos/DocumentosPage"));
@@ -163,6 +164,18 @@ export default function AppRoutes() {
             permission="anamnese"
           >
             <AnamnesePage />
+          </PerfilRoute>
+        }
+      />
+
+      <Route
+        path={routes.planoAcaoCoordenador}
+        element={
+          <PerfilRoute
+            perfil="COORDENADOR"
+            permission="estudantes.consultar"
+          >
+            <PlanoAcaoPage />
           </PerfilRoute>
         }
       />
