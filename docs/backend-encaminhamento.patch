@@ -1,0 +1,399 @@
+--- a/src/main/java/br/com/portalincluir/controller/FluxoEstudanteController.java
++++ b/src/main/java/br/com/portalincluir/controller/FluxoEstudanteController.java
+@@ -25,9 +25,10 @@
+   private final PoliticaHistoricoService politica;
+   private final EstudanteService estudanteService;
+   private final PlanoAcaoService planoService;
+-  public record Responsavel(Long usuarioId, String nome, String perfil) {}
++  private final NotificacaoFluxoRepository notificacoes;
++  public record Responsavel(Long usuarioId, String nome, String perfil, Set<String> permissoes) {}
+   public record Resposta(Long estudanteId, String anamneseStatus, String planoStatus, boolean peiRegistrado, Map<String, Responsavel> responsaveis) {}
+-  public record Atribuicao(Long usuarioId) {}
++  public record Atribuicao(Long usuarioId, @jakarta.validation.constraints.Size(max=2000) String mensagem, Long planoId) {}
+   public record Anamnese(@NotNull @Valid EstudanteRequest dados, boolean concluir) {}
+   public record Plano(@NotNull @Valid PlanoAcaoRequest dados, Long planoId) {}
+   private boolean gestao(Usuario u) { return u.getPerfil().name().equals("COORDENADOR") || u.getPerfil().name().equals("ADMINISTRADOR"); }
+@@ -39,7 +40,19 @@
+       case ADMINISTRADOR -> u.getAdministrador().getNome();
+     };
+   }
+-  private Responsavel responsavel(Usuario u) { return new Responsavel(u.getId(), nome(u), u.getPerfil().name()); }
++  private Responsavel responsavel(Usuario u) { return new Responsavel(u.getId(), nome(u), u.getPerfil().name(), PermissaoService.efetivas(u)); }
++  private Set<String> permissoesEtapa(String etapa) {
++    return switch(etapa) {
++      case "ANAMNESE" -> Set.of("estudantes.consultar", "anamnese", "sensivel.consultar");
++      case "PLANO_ACAO" -> Set.of("estudantes.consultar", "planos.gerar", "sensivel.consultar");
++      case "PEI" -> Set.of("estudantes.consultar", "pei.consultar", "pei.editar", "sensivel.consultar");
++      default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Etapa inválida");
++    };
++  }
++  private void exigirPermissoes(Usuario u, String etapa) {
++    var faltantes = new TreeSet<>(permissoesEtapa(etapa)); faltantes.removeAll(PermissaoService.efetivas(u));
++    if (!faltantes.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Conceda primeiro as permissões ao profissional e depois atribua a tarefa. Permissões necessárias: " + String.join(", ", faltantes));
++  }
+   private FluxoEstudante obter(Long id, boolean editar) {
+     Estudante e = editar ? politica.bloquear(id) : estudantes.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+     politica.exigirDisponivel(e);
+@@ -54,7 +67,7 @@
+     if (gestao(u)) { acesso.exigir(req, etapa.equals("ANAMNESE") ? "anamnese" : "planos.gerar"); return; }
+     Usuario responsavel = atribuido(f, etapa);
+     if (responsavel == null || !responsavel.getId().equals(u.getId())) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Esta etapa nao esta atribuida a sua conta");
+-    acesso.exigir(req, "estudantes.consultar");
++    for (String permissao : permissoesEtapa(etapa)) acesso.exigir(req, permissao);
+   }
+   private Resposta resposta(Long id, FluxoEstudante f) {
+     Map<String,Responsavel> r = new LinkedHashMap<>();
+@@ -72,15 +85,28 @@
+     acesso.exigir(req, "estudantes.vincular"); obter(id, false);
+     return usuarios.findAll().stream().filter(PermissaoService::ativo).filter(u -> Set.of("PROFESSOR", "EQUIPE_MULTIDISCIPLINAR").contains(u.getPerfil().name())).map(this::responsavel).sorted(Comparator.comparing(Responsavel::nome)).toList();
+   }
+-  @PutMapping("/responsaveis/{etapa}") public Resposta atribuir(@PathVariable Long id, @PathVariable String etapa, @RequestBody Atribuicao r, HttpServletRequest req) {
++  @PutMapping("/responsaveis/{etapa}") public Resposta atribuir(@PathVariable Long id, @PathVariable String etapa, @Valid @RequestBody Atribuicao r, HttpServletRequest req) {
+     Usuario autor = acesso.exigir(req, "estudantes.vincular");
+     if (!gestao(autor)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+     FluxoEstudante f = obter(id, true); atribuido(f, etapa);
+     Usuario u = r.usuarioId() == null ? null : usuarios.findById(r.usuarioId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profissional nao encontrado"));
+-    if (u != null && (!PermissaoService.ativo(u) || !Set.of("PROFESSOR", "EQUIPE_MULTIDISCIPLINAR").contains(u.getPerfil().name()) || !PermissaoService.efetivas(u).contains("estudantes.consultar"))) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Profissional sem acesso ao acompanhamento");
++    if (u != null && (!PermissaoService.ativo(u) || !Set.of("PROFESSOR", "EQUIPE_MULTIDISCIPLINAR").contains(u.getPerfil().name()))) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selecione um profissional ativo");
++    if (u != null) exigirPermissoes(u, etapa);
++    if (u != null && (r.mensagem() == null || r.mensagem().isBlank())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe uma mensagem ao profissional");
++    if (r.planoId() != null) {
++      if (!etapa.equals("PLANO_ACAO")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Plano incompatível com a etapa");
++      var plano = planos.findById(r.planoId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
++      politica.exigirMesmoEstudante(plano.getEstudante(), id);
++      if (plano.isArquivado() || plano.getStatus() == br.com.portalincluir.enums.StatusPlanoAcao.ASSINADO) throw new ResponseStatusException(HttpStatus.CONFLICT, "Este plano já está concluído ou arquivado");
++    }
+     switch(etapa) { case "ANAMNESE" -> f.setAnamneseResponsavel(u); case "PLANO_ACAO" -> f.setPlanoResponsavel(u); case "PEI" -> f.setPeiResponsavel(u); }
+     if (autor.getCoordenador() != null) f.setCoordenador(autor.getCoordenador());
+-    fluxos.save(f); return resposta(id,f);
++    fluxos.save(f);
++    if (u != null) {
++      var n = new NotificacaoFluxo(); n.setDestinatario(u); n.setEstudante(f.getEstudante()); n.setRemetente(nome(autor)); n.setEtapa(etapa); n.setPlanoId(r.planoId()); n.setMensagem(r.mensagem().strip()); n.setCriadaEm(politica.agora());
++      notificacoes.save(n);
++    }
++    return resposta(id,f);
+   }
+   @PutMapping("/anamnese") public EstudanteResponse anamnese(@PathVariable Long id, @Valid @RequestBody Anamnese r, HttpServletRequest req) {
+     FluxoEstudante f = obter(id,true); exigirEtapa(req,f,"ANAMNESE");
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/controller/AuditoriaController.java
+@@ -0,0 +1,41 @@
++package br.com.portalincluir.controller;
++
++import br.com.portalincluir.service.PermissaoService;
++import br.com.portalincluir.service.AuditoriaService;
++import jakarta.servlet.http.HttpServletRequest;
++import java.time.LocalDate;
++import java.util.List;
++import org.springframework.format.annotation.DateTimeFormat;
++import org.springframework.http.*;
++import org.springframework.web.bind.annotation.*;
++import org.springframework.web.server.ResponseStatusException;
++
++@RestController
++@RequestMapping("/api/auditorias")
++public class AuditoriaController {
++    private final AuditoriaService service;
++    private final PermissaoService acesso;
++    public AuditoriaController(AuditoriaService service, PermissaoService acesso) {
++        this.service = service;
++        this.acesso = acesso;
++    }
++    private void autorizar(HttpServletRequest request) {
++        acesso.exigir(request, "auditorias");
++    }
++    @GetMapping("/tabelas")
++    public ResponseEntity<List<String>> tabelas(HttpServletRequest request) {
++        autorizar(request);
++        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.tabelas());
++    }
++    @GetMapping
++    public ResponseEntity<AuditoriaService.Consulta> consultar(HttpServletRequest request,
++            @RequestParam(defaultValue = "") String tabela, @RequestParam(defaultValue = "") String operacao,
++            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
++            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
++            @RequestParam(defaultValue = "") String registro,
++            @RequestParam(defaultValue = "0") int pagina, @RequestParam(defaultValue = "20") int tamanho) {
++        autorizar(request);
++        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
++            .body(service.consultar(tabela, operacao, inicio, fim, registro, pagina, tamanho));
++    }
++}
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/controller/NotificacaoFluxoController.java
+@@ -0,0 +1,31 @@
++package br.com.portalincluir.controller;
++import br.com.portalincluir.repository.NotificacaoFluxoRepository;
++import br.com.portalincluir.service.PermissaoService;
++import br.com.portalincluir.service.PoliticaHistoricoService;
++import br.com.portalincluir.model.NotificacaoFluxo;
++import jakarta.servlet.http.HttpServletRequest;
++import lombok.RequiredArgsConstructor;
++import org.springframework.web.bind.annotation.*;
++import org.springframework.transaction.annotation.Transactional;
++import org.springframework.http.HttpStatus;
++import org.springframework.web.server.ResponseStatusException;
++import java.time.LocalDateTime;
++import java.util.List;
++@RestController @RequestMapping("/api/notificacoes") @RequiredArgsConstructor @Transactional
++public class NotificacaoFluxoController {
++    private final NotificacaoFluxoRepository notificacoes;
++    private final PermissaoService acesso;
++    private final PoliticaHistoricoService politica;
++    public record Resposta(Long id, Long estudanteId, String estudanteNome, String etapa, Long planoId, String remetente, String mensagem, LocalDateTime criadaEm, boolean lida) {}
++    private Resposta resposta(NotificacaoFluxo n) { return new Resposta(n.getId(), n.getEstudante().getId(), n.getEstudante().getNome(), n.getEtapa(), n.getPlanoId(), n.getRemetente(), n.getMensagem(), n.getCriadaEm(), n.isLida()); }
++    @GetMapping public List<Resposta> listar(HttpServletRequest req) {
++        var u = acesso.autenticado(req);
++        return notificacoes.findByDestinatarioIdOrderByCriadaEmDescIdDesc(u.getId()).stream().filter(n -> politica.disponivel(n.getEstudante())).map(this::resposta).toList();
++    }
++    @PatchMapping("/{id}/lida") public Resposta ler(@PathVariable Long id, HttpServletRequest req) {
++        var u = acesso.autenticado(req);
++        var n = notificacoes.findByIdAndDestinatarioId(id, u.getId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
++        politica.exigirDisponivel(n.getEstudante()); n.setLida(true);
++        return resposta(notificacoes.save(n));
++    }
++}
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/service/AuditoriaService.java
+@@ -0,0 +1,94 @@
++package br.com.portalincluir.service;
++
++import com.fasterxml.jackson.databind.JsonNode;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import java.sql.SQLException;
++import java.time.*;
++import java.util.*;
++import org.springframework.http.HttpStatus;
++import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
++import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++import org.springframework.web.server.ResponseStatusException;
++
++@Service
++@Transactional(readOnly = true)
++public class AuditoriaService {
++    private final NamedParameterJdbcTemplate jdbc;
++    private final ObjectMapper mapper;
++    public AuditoriaService(NamedParameterJdbcTemplate jdbc, ObjectMapper mapper) {
++        this.jdbc = jdbc;
++        this.mapper = mapper;
++    }
++    public record Registro(String tabela, int revisao, Instant data, JsonNode identidade,
++                           String operacao, JsonNode detalhes) {}
++    public record Consulta(List<Registro> registros, long total) {}
++    private record Tabela(String nome, String chaves) {}
++
++    private List<Tabela> catalogo() {
++        return jdbc.query("""
++            SELECT c.relname, json_agg(a.attname ORDER BY k.ordem)::text AS chaves
++            FROM pg_class c
++            JOIN pg_namespace n ON n.oid = c.relnamespace
++            JOIN pg_constraint p ON p.conrelid = c.oid AND p.contype = 'p'
++            CROSS JOIN LATERAL unnest(p.conkey) WITH ORDINALITY k(numero, ordem)
++            JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.numero
++            WHERE n.nspname = 'auditoria' AND c.relkind IN ('r', 'p')
++              AND right(c.relname, 4) = '_aud' AND a.attname NOT IN ('rev', 'revtype')
++              AND EXISTS (SELECT 1 FROM pg_attribute x WHERE x.attrelid = c.oid
++                  AND x.attname = 'detalhes' AND NOT x.attisdropped)
++            GROUP BY c.relname ORDER BY c.relname
++            """, Map.of(), (rs, i) -> new Tabela(rs.getString("relname"), rs.getString("chaves")));
++    }
++    public List<String> tabelas() { return catalogo().stream().map(Tabela::nome).toList(); }
++    private static String identificador(String nome) { return "\"" + nome.replace("\"", "\"\"") + "\""; }
++    private static String literal(String texto) { return "'" + texto.replace("'", "''") + "'"; }
++    private JsonNode json(String value) throws SQLException {
++        if (value == null) return null;
++        try { return mapper.readTree(value); }
++        catch (Exception e) { throw new SQLException("Detalhes de auditoria invalidos", e); }
++    }
++    public Consulta consultar(String tabela, String operacao, LocalDate inicio, LocalDate fim,
++                              String registro, int pagina, int tamanho) {
++        if (pagina < 0 || tamanho < 1 || tamanho > 100 || (long) pagina * tamanho > Integer.MAX_VALUE
++                || (inicio != null && fim != null && inicio.isAfter(fim)) || registro.length() > 200)
++            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Filtros ou paginacao invalidos");
++        Integer tipo = switch (operacao) {
++            case "" -> null;
++            case "ADD" -> 0;
++            case "MOD" -> 1;
++            case "DEL" -> 2;
++            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Operacao invalida");
++        };
++        List<Tabela> tabelas = catalogo();
++        if (!tabela.isEmpty() && tabelas.stream().noneMatch(t -> t.nome().equals(tabela)))
++            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tabela de auditoria invalida");
++        if (!tabela.isEmpty()) tabelas = tabelas.stream().filter(t -> t.nome().equals(tabela)).toList();
++        if (tabelas.isEmpty()) return new Consulta(List.of(), 0);
++        // Nomes vem exclusivamente do catalogo. Valores de filtros usam parametros vinculados.
++        String uniao = String.join(" UNION ALL ", tabelas.stream().map(t -> "SELECT " + literal(t.nome())
++            + " AS tabela, a.rev, a.revtype, a.detalhes, "
++            + "(SELECT jsonb_object_agg(e.key, e.value) FROM jsonb_each(to_jsonb(a)) e "
++            + "WHERE e.key IN (SELECT jsonb_array_elements_text(" + literal(t.chaves()) + "::jsonb))) AS identidade "
++            + "FROM auditoria." + identificador(t.nome()) + " a").toList());
++        String from = " FROM (" + uniao + ") a JOIN auditoria.revinfo r ON r.rev = a.rev WHERE 1=1";
++        var params = new MapSqlParameterSource();
++        if (tipo != null) { from += " AND a.revtype = :tipo"; params.addValue("tipo", tipo); }
++        ZoneId zona = ZoneId.of("America/Sao_Paulo");
++        if (inicio != null) { from += " AND r.revtstmp >= :inicio"; params.addValue("inicio", inicio.atStartOfDay(zona).toInstant().toEpochMilli()); }
++        if (fim != null) { from += " AND r.revtstmp < :fim"; params.addValue("fim", fim.plusDays(1).atStartOfDay(zona).toInstant().toEpochMilli()); }
++        if (!registro.isBlank()) {
++            from += " AND EXISTS (SELECT 1 FROM jsonb_each_text(a.identidade) e WHERE e.value = :registro)";
++            params.addValue("registro", registro.trim());
++        }
++        long total = jdbc.queryForObject("SELECT count(*)" + from, params, Long.class);
++        params.addValue("limite", tamanho).addValue("offset", (long) pagina * tamanho);
++        List<Registro> registros = jdbc.query("SELECT a.*, r.revtstmp" + from
++            + " ORDER BY a.rev DESC, a.tabela, a.identidade::text LIMIT :limite OFFSET :offset", params,
++            (rs, i) -> new Registro(rs.getString("tabela"), rs.getInt("rev"), Instant.ofEpochMilli(rs.getLong("revtstmp")),
++                json(rs.getString("identidade")), switch (rs.getInt("revtype")) { case 0 -> "ADD"; case 1 -> "MOD"; default -> "DEL"; },
++                json(rs.getString("detalhes"))));
++        return new Consulta(registros, total);
++    }
++}
+--- a/src/main/java/br/com/portalincluir/service/RetencaoEstudanteService.java
++++ b/src/main/java/br/com/portalincluir/service/RetencaoEstudanteService.java
+@@ -28,6 +28,8 @@
+         executar("delete from auditoria.adaptacoes_pedagogicas_aud where estudante_id = :id", id);
+         executar("delete from auditoria.estudantes_aud where id = :id", id);
+         executar("delete from auditoria.fluxos_estudantes_aud where estudante_id = :id", id);
++        executar("delete from auditoria.notificacoes_fluxo_aud where estudante_id = :id", id);
++        executar("delete from notificacoes_fluxo where estudante_id = :id", id);
+         executar("delete from fluxos_estudantes where estudante_id = :id", id);
+         executar("delete from planos_acao where estudante_id = :id", id);
+         executar("delete from adaptacoes_pedagogicas where estudante_id = :id", id);
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/model/NotificacaoFluxo.java
+@@ -0,0 +1,22 @@
++package br.com.portalincluir.model;
++import jakarta.persistence.*;
++import lombok.Getter;
++import lombok.Setter;
++import java.time.LocalDateTime;
++@Entity @Getter @Setter @org.hibernate.envers.Audited
++@Table(name = "notificacoes_fluxo", indexes = @Index(name = "idx_notificacao_destinatario_data", columnList = "destinatario_id,criada_em"))
++public class NotificacaoFluxo {
++    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
++    @ManyToOne(optional = false) @JoinColumn(name = "destinatario_id", nullable = false)
++    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
++    private Usuario destinatario;
++    @ManyToOne(optional = false) @JoinColumn(name = "estudante_id", nullable = false)
++    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
++    private Estudante estudante;
++    @Column(nullable = false, length = 150) private String remetente;
++    @Column(nullable = false, length = 20) private String etapa;
++    private Long planoId;
++    @Column(nullable = false, length = 2000) private String mensagem;
++    @Column(name = "criada_em", nullable = false) private LocalDateTime criadaEm;
++    @Column(nullable = false) private boolean lida;
++}
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/repository/NotificacaoFluxoRepository.java
+@@ -0,0 +1,8 @@
++package br.com.portalincluir.repository;
++import br.com.portalincluir.model.NotificacaoFluxo;
++import org.springframework.data.jpa.repository.JpaRepository;
++import java.util.*;
++public interface NotificacaoFluxoRepository extends JpaRepository<NotificacaoFluxo, Long> {
++    List<NotificacaoFluxo> findByDestinatarioIdOrderByCriadaEmDescIdDesc(Long usuarioId);
++    Optional<NotificacaoFluxo> findByIdAndDestinatarioId(Long id, Long usuarioId);
++}
+--- a/src/test/java/br/com/portalincluir/controller/FluxoEstudanteTest.java
++++ b/src/test/java/br/com/portalincluir/controller/FluxoEstudanteTest.java
+@@ -26,6 +26,9 @@
+ class FluxoEstudanteTest {
+  @Autowired MockMvc mvc; @Autowired ObjectMapper json; @Autowired UsuarioService usuarios;
+  @Autowired PlanoAcaoRepository planos;
++ @Autowired UsuarioRepository contas;
++ @Autowired NotificacaoFluxoRepository notificacoes;
++ private void permitir(Long id, String... codigos) { var u = contas.findById(id).orElseThrow(); for (var codigo : codigos) u.getPermissoesIndividuais().put(codigo,true); contas.saveAndFlush(u); }
+  private Long usuario(String email, PerfilUsuario perfil) {
+    var r = new CadastroUsuarioRequest(); r.setNome("Teste " + email); r.setEmail(email); r.setSenha("senha123"); r.setMatricula(email); r.setSetor("Ensino"); r.setCargo("Coordenacao"); r.setPerfil(perfil);
+    if(perfil == PerfilUsuario.PROFESSOR) { r.setDisciplina("Historia"); r.setCursosAtuacao(Set.of(CatalogoProfissional.CURSOS.get(0))); }
+@@ -35,6 +38,7 @@
+  @Test void rascunhoRetomadaAtribuicaoEConclusao() throws Exception {
+    var coord = sessao(usuario("coord-fluxo@teste.invalid", PerfilUsuario.COORDENADOR));
+    Long profissional = usuario("prof-fluxo@teste.invalid", PerfilUsuario.PROFESSOR);
++   permitir(profissional, "planos.gerar", "sensivel.consultar");
+    var prof = sessao(profissional);
+    var outro = sessao(usuario("outro-fluxo@teste.invalid", PerfilUsuario.PROFESSOR));
+    Map<String,Object> estudante = new HashMap<>();
+@@ -52,7 +56,7 @@
+    mvc.perform(post(raiz + "/plano").session(coord).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("dados", plano)))).andExpect(status().isConflict());
+    long planoId = json.readTree(criado.getResponse().getContentAsString()).get("id").asLong();
+    mvc.perform(post("/api/planos-acao/" + planoId + "/assinar").session(coord)).andExpect(status().isBadRequest());
+-   mvc.perform(put(raiz + "/responsaveis/PLANO_ACAO").session(coord).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("usuarioId", profissional)))).andExpect(status().isOk()).andExpect(jsonPath("responsaveis.PLANO_ACAO.usuarioId").value(profissional));
++   mvc.perform(put(raiz + "/responsaveis/PLANO_ACAO").session(coord).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("usuarioId", profissional, "mensagem", "Finalize o plano", "planoId", planoId)))).andExpect(status().isOk()).andExpect(jsonPath("responsaveis.PLANO_ACAO.usuarioId").value(profissional));
+    plano.put("consideracoes", "Retomada do rascunho");
+    String atualizacao = json.writeValueAsString(Map.of("dados", plano, "planoId", planoId));
+    mvc.perform(post(raiz + "/plano").session(outro).contentType(MediaType.APPLICATION_JSON).content(atualizacao)).andExpect(status().isForbidden());
+@@ -65,4 +69,36 @@
+    mvc.perform(put(raiz + "/anamnese").session(coord).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("dados", estudante, "concluir", true)))).andExpect(status().isOk());
+    mvc.perform(get(raiz).session(coord)).andExpect(status().isOk()).andExpect(jsonPath("anamneseStatus").value("CONCLUIDA")).andExpect(jsonPath("planoStatus").value("RASCUNHO"));
+  }
++ @Test void encaminhamentoExigePermissaoENotificaSomenteDestinatario() throws Exception {
++   var coord = sessao(usuario("coord-encaminhar@teste.invalid", PerfilUsuario.COORDENADOR));
++   Long profissional = usuario("prof-encaminhar@teste.invalid", PerfilUsuario.PROFESSOR);
++   var prof = sessao(profissional);
++   var outro = sessao(usuario("outro-encaminhar@teste.invalid", PerfilUsuario.PROFESSOR));
++   Map<String,Object> estudante = new HashMap<>();
++   estudante.put("nomeCompleto", "Estudante encaminhamento"); estudante.put("matricula", "ENCAMINHAR-1"); estudante.put("curso", CatalogoProfissional.CURSOS.get(0)); estudante.put("dataNascimento", "2005-02-03"); estudante.put("periodoIngresso", "2026.1");
++   for(String lista : List.of("necessidadesEspecificas", "condicoesAssociadas", "atendimentosCampus", "acessibilidadesFisicas")) estudante.put(lista, List.of());
++   var salvo = mvc.perform(post("/api/estudantes").session(coord).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(estudante))).andExpect(status().isOk()).andReturn();
++   long id = json.readTree(salvo.getResponse().getContentAsString()).get("id").asLong();
++   String raiz = "/api/estudantes/" + id + "/fluxo";
++   String corpo = json.writeValueAsString(Map.of("usuarioId", profissional, "mensagem", "Por favor, conclua as necessidades específicas."));
++   long totalAntes = notificacoes.count();
++   mvc.perform(put(raiz + "/responsaveis/ANAMNESE").session(coord).contentType(MediaType.APPLICATION_JSON).content(corpo)).andExpect(status().isBadRequest());
++   assertEquals(totalAntes, notificacoes.count());
++   mvc.perform(get(raiz).session(coord)).andExpect(jsonPath("responsaveis.ANAMNESE").doesNotExist());
++   permitir(profissional, "anamnese", "sensivel.consultar", "estudantes.editar");
++   mvc.perform(put(raiz + "/responsaveis/ANAMNESE").session(prof).contentType(MediaType.APPLICATION_JSON).content(corpo)).andExpect(status().isForbidden());
++   mvc.perform(put(raiz + "/responsaveis/ANAMNESE").session(coord).contentType(MediaType.APPLICATION_JSON).content(corpo)).andExpect(status().isOk()).andExpect(jsonPath("anamneseStatus").value("RASCUNHO"));
++   assertEquals(totalAntes + 1, notificacoes.count());
++   var recebidas = mvc.perform(get("/api/notificacoes").session(prof)).andExpect(status().isOk()).andExpect(jsonPath("$[0].mensagem").value("Por favor, conclua as necessidades específicas.")).andExpect(jsonPath("$[0].lida").value(false)).andExpect(jsonPath("$[0].estudanteId").value(id)).andReturn();
++   long aviso = json.readTree(recebidas.getResponse().getContentAsString()).get(0).get("id").asLong();
++   mvc.perform(get("/api/notificacoes").session(outro)).andExpect(jsonPath("$.length()").value(0));
++   mvc.perform(patch("/api/notificacoes/" + aviso + "/lida").session(outro)).andExpect(status().isNotFound());
++   mvc.perform(patch("/api/notificacoes/" + aviso + "/lida").session(prof)).andExpect(status().isOk()).andExpect(jsonPath("lida").value(true));
++   mvc.perform(get("/api/notificacoes")).andExpect(status().isUnauthorized());
++   mvc.perform(get("/api/notificacoes").session(prof)).andExpect(jsonPath("$[0].lida").value(true));
++   var u = contas.findById(profissional).orElseThrow(); u.getPermissoesIndividuais().put("anamnese", false); contas.saveAndFlush(u);
++   mvc.perform(put(raiz + "/anamnese").session(prof).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("dados", estudante, "concluir", false)))).andExpect(status().isForbidden());
++   mvc.perform(put(raiz + "/responsaveis/PEI").session(coord).contentType(MediaType.APPLICATION_JSON).content(corpo)).andExpect(status().isBadRequest());
++   assertEquals(totalAntes + 1, notificacoes.count());
++ }
+ }
+--- /dev/null
++++ b/src/test/java/br/com/portalincluir/controller/AuditoriaEndpointTest.java
+@@ -0,0 +1,31 @@
++package br.com.portalincluir.controller;
++import br.com.portalincluir.service.*;
++import jakarta.servlet.http.HttpServletRequest;
++import org.junit.jupiter.api.Test;
++import org.springframework.http.HttpStatus;
++import org.springframework.test.web.servlet.setup.MockMvcBuilders;
++import org.springframework.web.server.ResponseStatusException;
++import java.util.List;
++import static org.mockito.Mockito.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
++class AuditoriaEndpointTest {
++  @Test void rotasRegistradasRetornamHistoricoComPermissao() throws Exception {
++    var service = mock(AuditoriaService.class); var acesso = mock(PermissaoService.class);
++    when(service.consultar("", "", null, null, "", 0, 100)).thenReturn(new AuditoriaService.Consulta(List.of(), 0));
++    when(service.tabelas()).thenReturn(List.of("fluxos_estudantes_aud"));
++    var mvc = MockMvcBuilders.standaloneSetup(new AuditoriaController(service, acesso)).build();
++    mvc.perform(get("/api/auditorias").param("pagina","0").param("tamanho","100")).andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store")).andExpect(jsonPath("total").value(0));
++    mvc.perform(get("/api/auditorias/tabelas")).andExpect(status().isOk()).andExpect(jsonPath("$[0]").value("fluxos_estudantes_aud"));
++    verify(acesso, times(2)).exigir(any(HttpServletRequest.class), eq("auditorias"));
++  }
++  @Test void semPermissaoNaoConsultaDados() throws Exception {
++    var service = mock(AuditoriaService.class); var acesso = mock(PermissaoService.class);
++    when(acesso.exigir(any(HttpServletRequest.class), eq("auditorias"))).thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN));
++    var mvc = MockMvcBuilders.standaloneSetup(new AuditoriaController(service, acesso)).build();
++    mvc.perform(get("/api/auditorias")).andExpect(status().isForbidden());
++    mvc.perform(get("/api/auditorias/tabelas")).andExpect(status().isForbidden());
++    verifyNoInteractions(service);
++  }
++}
