@@ -20,8 +20,8 @@ export default function AppLayout({ children }: LayoutProps) {
     setMobileOpen(false);
   }
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    if (!await logout()) return;
     closeMobileMenu();
     navigate(routes.home);
   }

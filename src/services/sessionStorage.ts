@@ -19,6 +19,6 @@ export const userSession = {
       return isUsuario(value) ? value : null;
     } catch { return null; }
   },
-  save(usuario: Usuario) { sessionStorage.setItem(key, JSON.stringify(usuario)); },
-  clear() { sessionStorage.removeItem(key); },
+  save(usuario: Usuario) { try { sessionStorage.setItem(key, JSON.stringify(usuario)); } catch { /* O servidor mantém a sessão mesmo sem armazenamento local. */ } },
+  clear() { try { sessionStorage.removeItem(key); } catch { /* O cache é opcional. */ } },
 };

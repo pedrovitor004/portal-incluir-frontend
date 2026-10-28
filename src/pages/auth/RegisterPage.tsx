@@ -2,7 +2,7 @@ import { areasEquipe } from "../../config/profissionais";
 import ProfessionalCoursesField from "../../components/common/ProfessionalCoursesField";
 import AccessibilitySymbols from "../../components/auth/AccessibilitySymbols";
 import LoadingState from "../../components/common/LoadingState";
-import { solicitacoesAcessoService } from "../../services/solicitacoesAcessoService";
+import { useAuth } from "../../hooks/useAuth";
 import { routes } from "../../config/routes";
 import { mensagemErro } from "../../services/apiError";
 import type { CadastroRequest, SolicitacaoAcesso } from "../../types/auth";
@@ -128,7 +128,7 @@ function FormInput({ field }: { field: Field }) {
 }
 
 export default function RegisterPage() {
-  const register = solicitacoesAcessoService.cadastrar;
+  const { register } = useAuth();
   const [solicitacao, setSolicitacao] = useState<SolicitacaoAcesso | null>(null);
   const [cursosAtuacao, setCursosAtuacao] = useState<string[]>([]);
   const [erro, setErro] = useState("");

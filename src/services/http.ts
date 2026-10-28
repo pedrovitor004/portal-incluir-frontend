@@ -19,5 +19,6 @@ http.interceptors.response.use(response => {
   return response;
 }, (error: unknown) => {
   if (axios.isAxiosError(error)) finish(error.config);
+  if (axios.isAxiosError(error) && error.response?.status === 401 && !/\/auth\/(login|register)(?:$|\?)/.test(error.config?.url ?? "") && typeof window !== "undefined") window.dispatchEvent(new Event("portal:session-check"));
   return Promise.reject(error);
 });
