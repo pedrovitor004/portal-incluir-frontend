@@ -32,7 +32,7 @@ export default function AuditoriasPage() {
         setDados(resultado); setAtualizadoEm(new Date());
         if (versao > 0) notificationService.success("Auditorias atualizadas com sucesso!");
       })
-      .catch(error => { if (ativo && !axios.isCancel(error)) setErro(axios.isAxiosError(error) && error.response?.status === 401 ? "Sua sessão expirou. Entre novamente para consultar as auditorias." : mensagemErro(error)); })
+      .catch(error => { if (ativo && !axios.isCancel(error)) setErro(axios.isAxiosError(error) && error.response?.status === 401 ? "Sua sessão expirou. Entre novamente para consultar as auditorias." : axios.isAxiosError(error) && error.response?.status === 404 ? "O serviço de auditorias não está disponível no servidor. Reinicie o backend atualizado e tente novamente." : mensagemErro(error)); })
       .finally(() => { if (ativo) { setCarregando(false); operacaoPendente.current = false; } });
     return () => { ativo = false; controller.abort(); };
   }, [versao]);
