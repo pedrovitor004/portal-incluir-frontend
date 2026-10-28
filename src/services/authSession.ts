@@ -1,8 +1,8 @@
 import axios from "axios";
-import type { CadastroRequest, LoginRequest, Usuario } from "../types/auth";
+import type { CadastroRequest, LoginRequest, Usuario, SolicitacaoAcesso } from "../types/auth";
 import { mensagemErro } from "./apiError";
 
-type Api = { me(): Promise<Usuario>; login(dados: LoginRequest): Promise<Usuario>; register(dados: CadastroRequest): Promise<Usuario>; logout(): Promise<void> };
+type Api = { me(): Promise<Usuario>; login(dados: LoginRequest): Promise<Usuario>; register(dados: CadastroRequest): Promise<SolicitacaoAcesso>; logout(): Promise<void> };
 type Cache = { save(usuario: Usuario): void; clear(): void };
 export function createAuthSession(api: Api, cache: Cache) {
   let estado: { usuario: Usuario | null; carregando: boolean; erroSessao: string } = { usuario: null, carregando: true, erroSessao: "" };
@@ -46,7 +46,7 @@ export function createAuthSession(api: Api, cache: Cache) {
     subscribe(fn: () => void) { ouvintes.add(fn); return () => { ouvintes.delete(fn); }; },
     refresh,
     login: (dados: LoginRequest) => autenticar(() => api.login(dados)),
-    register: (dados: CadastroRequest) => autenticar(() => api.register(dados)),
+    register: (dados: CadastroRequest) => api.register(dados),
     async logout() {
       if (ocupada) throw new Error("Aguarde a operação de sessão em andamento.");
       ocupada = true; versao++; publicar({ ...estado, carregando: true, erroSessao: "" });

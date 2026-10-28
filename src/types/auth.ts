@@ -2,6 +2,8 @@ export type PerfilUsuario = "COORDENADOR" | "PROFESSOR" | "ADMINISTRADOR" | "EQU
 
 export interface Usuario {
   id: number;
+  root?: boolean;
+  administracaoAprovada?: boolean;
   nome: string;
   email: string;
   perfil: PerfilUsuario;
@@ -10,6 +12,12 @@ export interface Usuario {
 }
 
 export interface LoginRequest { email: string; senha: string }
+export interface SolicitacaoAcesso {
+  id: number; tipo: "CADASTRO" | "ADMINISTRACAO"; nome: string; email: string; perfil: PerfilUsuario;
+  status: "PENDENTE" | "APROVADA" | "RECUSADA";
+  criadaEm: string; prazoAnalise: string; diasPendente: number; atrasada: boolean;
+  analisadaEm?: string; usuarioId?: number; motivo?: string; dados?: Record<string, unknown>;
+}
 
 interface CadastroBase {
   nome: string;

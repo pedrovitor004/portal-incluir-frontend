@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { CadastroRequest, LoginRequest, PerfilUsuario, Usuario } from "../types/auth";
+import type { CadastroRequest, LoginRequest, PerfilUsuario, Usuario, SolicitacaoAcesso } from "../types/auth";
 
 export interface AuthContextValue {
   usuario: Usuario | null;
@@ -7,7 +7,7 @@ export interface AuthContextValue {
   erroSessao: string;
   atualizarSessao(): Promise<void>;
   login(request: LoginRequest): Promise<Usuario>;
-  register(request: CadastroRequest): Promise<Usuario>;
+  register(request: CadastroRequest): Promise<SolicitacaoAcesso>;
   logout(): Promise<boolean>;
   atualizarDadosPerfil(perfil: PerfilUsuario, perfilId: number, dados: { nome: string; email?: string }): void;
 }

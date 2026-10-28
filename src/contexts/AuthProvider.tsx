@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     catch (erro) { notificationService.error(mensagemErro(erro)); throw erro; }
   }
   async function register(request: CadastroRequest) {
-    try { const usuario = await sessao.register(request); abas.current?.changed(); notificationService.success("Conta criada com sucesso!"); return usuario; }
+    try { const pedido = await sessao.register(request); notificationService.success("Solicitação enviada à coordenação. Aguarde a análise para acessar o sistema."); return pedido; }
     catch (erro) { notificationService.error(mensagemErro(erro)); throw erro; }
   }
   async function logout() {
