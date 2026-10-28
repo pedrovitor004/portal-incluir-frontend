@@ -30,3 +30,8 @@ dist-ssr
 
 # PDFs e imagens gerados nas verificações locais
 /tmp/pdfs/
+
+/tmp/backend-fluxo/
+/tmp/backend-fluxo-check/
+/tmp/backend-encaminhamento/
+/tmp/backend-stateful/
