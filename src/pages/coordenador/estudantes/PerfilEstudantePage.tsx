@@ -1,7 +1,9 @@
+import StudentExport from "./components/StudentExport";
+import { montarLinhaDoTempo } from "../../../services/linhaDoTempoEstudante";
 import StudentDocumentGeneration from "./components/StudentDocumentGeneration";
 import StudentProfessionals from "./components/StudentProfessionals";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import Swal from "sweetalert2";
 import axios from "axios";
 import { useAuth } from "../../../hooks/useAuth";
@@ -26,7 +28,7 @@ import { dataPerfil } from "./profilePresentation";
 
 type AbaPerfil = "plano" | "dados" | "diagnostico" | "adaptacoes" | "historico" | "documentos" | "profissionais";
 const abas: { id: AbaPerfil; label: string; icone: string }[] = [
-  { id: "plano", label: "Plano de ação", icone: "plano" }, { id: "dados", label: "Dados pessoais", icone: "usuario" },
+  { id: "plano", label: "Acompanhamento", icone: "plano" }, { id: "dados", label: "Dados pessoais", icone: "usuario" },
   { id: "diagnostico", label: "Diagnóstico", icone: "atividade" }, { id: "adaptacoes", label: "Adaptações", icone: "adaptacao" },
   { id: "historico", label: "Histórico", icone: "historico" }, { id: "documentos", label: "Documentos", icone: "documento" },
   { id: "profissionais", label: "Profissionais", icone: "equipe" },
@@ -37,10 +39,11 @@ export default function PerfilEstudantePage() {
 }
 function StudentProfile({ id }: { id: number }) {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { usuario } = useAuth();
   const basePath = accessProfiles[usuario?.perfil ?? "COORDENADOR"].basePath;
   const [dados, setDados] = useState<DadosPerfilEstudante | null>(null);
-  const [abaAtiva, setAbaAtiva] = useState<AbaPerfil>("plano");
+  const [abaAtiva, setAbaAtiva] = useState<AbaPerfil>(params.get("aba") === "documentos" ? "documentos" : "plano");
   const [carregando, setCarregando] = useState(true);
   const [confirmando, setConfirmando] = useState(false);
   const [erro, setErro] = useState("");
@@ -117,7 +120,7 @@ function StudentProfile({ id }: { id: number }) {
                   Dificuldades
                 </span>
                 <span className="text-base leading-6 text-slate-700">
-                  Ainda não há um plano de ação vinculado a este estudante.
+                  {plano?.principaisDemandas || "Nenhuma demanda registrada no plano de ação."}
                 </span>
 
                 <span className="text-sm font-semibold text-slate-500">
@@ -136,7 +139,7 @@ function StudentProfile({ id }: { id: number }) {
                   O que domina
                 </span>
                 <span className="text-base leading-6 text-slate-700">
-                  Será preenchido a partir do plano de ação.
+                  {plano?.avancosDificuldadesPotencialidades || "Nenhum avanço ou potencialidade registrado."}
                 </span>
               </div>
 
@@ -144,14 +147,14 @@ function StudentProfile({ id }: { id: number }) {
                   type="button"
                   onClick={() =>
                     navigate(
-                      `${basePath}/plano-acao?estudanteId=${encodeURIComponent(
+                      `${`${basePath}/plano-acao`}?estudanteId=${encodeURIComponent(
                         String(estudante.id),
                       )}`,
                     )
                   }
-                  className="mt-7 inline-flex min-h-11 items-center justify-center rounded-md bg-[#36a653] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#278944]"
+                  disabled={!usuario || !canAccess(usuario, "planos.gerar")} className="mt-7 inline-flex min-h-11 items-center justify-center rounded-md bg-[#36a653] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#278944]"
                 >
-                  Cadastrar Plano de Ação
+                  {plano ? "Consultar ou continuar plano de ação" : "Iniciar plano de ação"}
                 </button>
             </section>
 
@@ -160,25 +163,17 @@ function StudentProfile({ id }: { id: number }) {
                 Linha do tempo
               </h2>
 
-              <div className="mt-6 rounded-lg bg-[#f8faf7] p-5">
-                <p className="text-base font-semibold text-slate-700">
-                  Nenhuma atividade registrada
-                </p>
-
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Entrevistas, documentos, planos e adaptações poderão aparecer
-                  aqui quando o histórico estiver integrado.
-                </p>
-              </div>
+              <ol className="mt-6 space-y-4">{montarLinhaDoTempo(dados).slice(0, 8).map(evento => <li key={evento.chave} className="border-l-2 border-green-200 pl-4"><p className="text-sm font-semibold text-slate-800">{evento.titulo}</p><p className="mt-1 text-xs text-slate-500">{evento.descricao}</p><time className="mt-1 block text-xs text-slate-400">{new Date(evento.data).toLocaleString("pt-BR")}</time></li>)}</ol>
+              {!montarLinhaDoTempo(dados).length && <p className="mt-5 text-sm text-slate-500">Nenhuma movimentação disponível nesta consulta.</p>}
             </section>
           </div>
         )}
       {abaAtiva === "adaptacoes" && <section className="overflow-hidden rounded-2xl border border-[#dce5dc] bg-white"><div className="p-5"><h2 className="font-bold text-slate-800">Adaptações pedagógicas</h2><p className="mt-1 text-xs text-slate-500">Registros por componente curricular e professor, incluindo adaptações arquivadas. Abra um registro para consultar os detalhes.</p>{dados.falhas.adaptacoes && <p className="mt-2 text-sm text-amber-800">{dados.falhas.adaptacoes}</p>}</div>{!dados.falhas.adaptacoes && <StudentAdaptations adaptacoes={dados.adaptacoes} onView={setAdaptacao} />}</section>}
       {abaAtiva === "historico" && <>{filtroAdaptacao !== null && <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-green-100 bg-green-50 p-3 text-sm text-green-900"><span>Mostrando as alterações da adaptação selecionada.</span><button className="min-h-9 font-semibold underline" onClick={() => setFiltroAdaptacao(null)}>Ver todo o histórico do estudante</button></div>}{dados.falhas.historico ? <ProfileSection titulo="Histórico do estudante"><p className="text-sm text-slate-500">{dados.falhas.historico}</p></ProfileSection> : <AuditoriasTable registros={historico} carregando={carregando} confirmando={confirmando} onView={setRevisao} onRefresh={() => void atualizar()} filtroRapido={null} />}</>}
-      {abaAtiva === "documentos" && <section className="overflow-hidden rounded-2xl border border-[#dce5dc] bg-white"><div className="p-5"><h2 className="font-bold text-slate-800">Documentos do estudante</h2><p className="mt-1 text-xs text-slate-500">Planos de Ação e PEIs registrados, incluindo documentos arquivados. Os dados da anamnese estão nas abas Dados pessoais e Diagnóstico.</p><p className="mt-2 text-xs text-slate-400">RAIs e comprovantes anexados ainda não podem ser consultados por esta página.</p></div>{!(dados.falhas.planos && dados.falhas.peis) && <StudentDocuments documentos={dados.documentos} onView={setDocumento} />}</section>}
+      {abaAtiva === "documentos" && <section className="overflow-hidden rounded-2xl border border-[#dce5dc] bg-white"><div className="p-5"><h2 className="font-bold text-slate-800">Documentos do estudante</h2><p className="mt-1 text-xs text-slate-500">Planos de Ação e PEIs registrados, incluindo documentos arquivados. Os dados da anamnese estão nas abas Dados pessoais e Diagnóstico.</p><p className="mt-2 text-xs text-slate-400">O RAI reúne os registros disponíveis na data da emissão. Documentos arquivados permanecem disponíveis para consulta.</p></div>{!(dados.falhas.planos && dados.falhas.peis) && <StudentDocuments documentos={dados.documentos} onView={setDocumento} />}</section>}
     </div>
     {atualizadoEm && <p className="text-right text-[11px] text-slate-400">Última consulta: {atualizadoEm.toLocaleString("pt-BR")}</p>}
-    <Modal open={documento !== null} onClose={() => setDocumento(null)} title={documento?.nome || "Documento"} description={documento ? `${nome} · ${documento.periodo}` : undefined} size="wide" icon={<AuditIcon tipo="documento" className="h-7 w-7" />}>{documento && <DocumentDetails documento={documento} />}</Modal>
+    <Modal open={documento !== null} onClose={() => setDocumento(null)} title={documento?.nome || "Documento"} description={documento ? `${nome} · ${documento.periodo}` : undefined} size="wide" icon={<AuditIcon tipo="documento" className="h-7 w-7" />}>{documento && <div className="space-y-5"><DocumentDetails documento={documento} />{documento.tipo === "PLANO_ACAO" && <div className="space-y-3">{!documento.arquivado && !documento.assinado && <Button onClick={() => navigate(`${basePath}/plano-acao?estudanteId=${id}&planoId=${documento.id}`)}>Continuar este plano de ação</Button>}<StudentExport estudanteId={id} tipo="plano" planoId={documento.id} /></div>}</div>}</Modal>
     <Modal open={adaptacao !== null} onClose={() => setAdaptacao(null)} title={adaptacao?.componenteCurricular || "Adaptação pedagógica"} description={adaptacao ? `${adaptacao.professorNome || "Professor não informado"} · ${adaptacao.semestreAno || "Período não informado"}` : undefined} size="wide" icon={<AuditIcon tipo="adaptacao" className="h-7 w-7" />}>{adaptacao && <div className="space-y-5"><ProfileFields campos={[["Situação", adaptacao.arquivado ? "Arquivada" : "Em acompanhamento"], ["Registrada em", dataPerfil(adaptacao.dataCriacao, true)], ["Atualizada em", dataPerfil(adaptacao.dataAtualizacao, true)], ["Objetivo geral", adaptacao.objetivoGeral], ["Objetivos específicos", adaptacao.objetivosEspecificos], ["Conteúdos programáticos", adaptacao.conteudosProgramaticos], ["Metodologia", adaptacao.metodologia], ["Avaliação", adaptacao.avaliacao], ["Bibliografia básica", adaptacao.bibliografiaBasica], ["Bibliografia complementar", adaptacao.bibliografiaComplementar]]} /><Button variant="secondary" onClick={() => { setFiltroAdaptacao(adaptacao.id); setAdaptacao(null); setAbaAtiva("historico"); }} icon={<AuditIcon tipo="historico" />}>Ver alterações desta adaptação</Button></div>}</Modal>
     {gerarDocumento && <StudentDocumentGeneration dados={dados} onClose={() => setGerarDocumento(false)} />}
     {revisao && <AuditDetails registro={revisao} onClose={() => setRevisao(null)} />}

@@ -1,3 +1,8 @@
+import StudentFlow from "./components/StudentFlow";
+import Button from "../../../components/common/Button";
+import StudentExport from "./components/StudentExport";
+import { fluxoEstudanteService } from "../../../services/fluxoEstudanteService";
+import { mensagemErro } from "../../../services/apiError";
 import { cursosInstitucionais } from "../../../config/profissionais";
 import { necessidades, condicoes, atendimentos, acessibilidades } from "../../../config/estudanteFormOptions";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -5,8 +10,10 @@ import { useNavigate, useSearchParams } from "react-router";
 import Swal from "sweetalert2";
 import { toastConfig } from "../../../config/toast";
 import { useAuth } from "../../../hooks/useAuth";
-import { accessProfiles } from "../../../config/access";
-import { confirmarCadastroEstudante } from "../../../services/estudanteConfirmation";
+import { accessProfiles, canAccess } from "../../../config/access";
+import { alertaFluxo, oferecerEncaminhamento, encaminharEtapa } from "../../../services/fluxoEstudanteAlerts";
+import { pendenciasAnamnese } from "../../../services/fluxoEstudanteValidation";
+import { confirmarCadastroEstudante, confirmarConclusaoAnamnese } from "../../../services/estudanteConfirmation";
 import { estudantesService } from "../../../services/estudantesService";
 import type {
   EstudanteRequest,
@@ -182,11 +189,16 @@ export default function AnamnesePage() {
   const navigate = useNavigate();
   const { usuario } = useAuth();
   const basePath = accessProfiles[usuario?.perfil ?? "COORDENADOR"].basePath;
+  const podeAtribuir = !!usuario && ["COORDENADOR", "ADMINISTRADOR"].includes(usuario.perfil) && canAccess(usuario, "estudantes.vincular");
   const envioPendente = useRef(false);
+  const necessidadeRef = useRef<HTMLDivElement>(null);
+  const [tentouConcluir, setTentouConcluir] = useState(false);
   const [somenteLeitura, setSomenteLeitura] = useState(false);
   const [searchParams] = useSearchParams();
   const estudanteId = searchParams.get("estudanteId");
   const modoEdicao = estudanteId !== null;
+  const [concluir, setConcluir] = useState(false);
+  const [podePreencher, setPodePreencher] = useState(usuario?.perfil === "COORDENADOR" || usuario?.perfil === "ADMINISTRADOR");
 
   const [formulario, setFormulario] =
     useState<EstudanteRequest>(formularioVazio);
@@ -194,23 +206,35 @@ export default function AnamnesePage() {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
+  const [estudanteCarregado, setEstudanteCarregado] = useState(!modoEdicao);
+  const [fluxoDisponivel, setFluxoDisponivel] = useState(!modoEdicao);
+  const [tentativa, setTentativa] = useState(0);
 
   useEffect(() => {
     let ativo = true;
     async function carregarEstudante() {
-      if (!modoEdicao || estudanteId === null) { setFormulario(formularioVazio); setSomenteLeitura(false); setCarregando(false); return; }
+      if (!modoEdicao || estudanteId === null) { setFormulario(formularioVazio); setSomenteLeitura(false); setEstudanteCarregado(true); setFluxoDisponivel(true); setPodePreencher(usuario?.perfil === "COORDENADOR" || usuario?.perfil === "ADMINISTRADOR"); setCarregando(false); return; }
       const id = Number(estudanteId);
-      if (!Number.isInteger(id) || id <= 0) { setErro("O identificador do estudante é inválido."); setSomenteLeitura(true); setCarregando(false); return; }
+      if (!Number.isInteger(id) || id <= 0) { setErro("O identificador do estudante é inválido."); setEstudanteCarregado(false); setCarregando(false); return; }
       setCarregando(true); setErro("");
       try {
-        const estudante = await estudantesService.buscarPorId(id);
-        if (ativo) { setFormulario(converterParaFormulario(estudante)); setSomenteLeitura(estudante.concluido); }
-      } catch { if (ativo) { setErro("Não foi possível carregar o estudante. Verifique a conexão e tente novamente."); setSomenteLeitura(true); } }
+        const [cadastro, acompanhamento] = await Promise.allSettled([estudantesService.buscarPorId(id), fluxoEstudanteService.consultar(id)]);
+        if (!ativo) return;
+        if (cadastro.status === "rejected") throw cadastro.reason;
+        const estudante = cadastro.value;
+        setFormulario(converterParaFormulario(estudante)); setSomenteLeitura(estudante.concluido); setEstudanteCarregado(true);
+        setFluxoDisponivel(acompanhamento.status === "fulfilled");
+        const gestao = usuario?.perfil === "COORDENADOR" || usuario?.perfil === "ADMINISTRADOR";
+        if (acompanhamento.status === "fulfilled") {
+          setConcluir(acompanhamento.value.anamneseStatus === "CONCLUIDA");
+          setPodePreencher(gestao || acompanhamento.value.responsaveis.ANAMNESE?.usuarioId === usuario?.id);
+        } else { setPodePreencher(gestao); }
+      } catch (error) { if (ativo) { setErro(`Não foi possível carregar o cadastro. ${mensagemErro(error)}`); setEstudanteCarregado(false); setFluxoDisponivel(false); } }
       finally { if (ativo) setCarregando(false); }
     }
     void carregarEstudante();
     return () => { ativo = false; };
-  }, [estudanteId, modoEdicao]);
+  }, [estudanteId, modoEdicao, usuario?.id, usuario?.perfil, tentativa]);
   function alterarCampo(
     nome: keyof EstudanteRequest,
     valor: string
@@ -239,7 +263,9 @@ export default function AnamnesePage() {
 
   async function salvar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (envioPendente.current || carregando || somenteLeitura) return;
+    const elementoFormulario = event.currentTarget;
+    const formularioValido = elementoFormulario.checkValidity();
+    if (envioPendente.current || carregando || somenteLeitura || !podePreencher || !estudanteCarregado || !fluxoDisponivel) return;
     setErro("");
     setSucesso("");
 
@@ -250,9 +276,23 @@ export default function AnamnesePage() {
 
     envioPendente.current = true;
     setSalvando(true);
+    const continuar = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "continuar";
+    let idSalvo = Number(estudanteId);
 
     try {
-      if (!await confirmarCadastroEstudante(modoEdicao ? "editar" : "salvar", formulario.nomeCompleto)) return;
+      const pendencias = concluir || continuar ? pendenciasAnamnese(formulario) : [];
+      const delegar = pendencias.length > 0 && await oferecerEncaminhamento(pendencias, podeAtribuir);
+      if (pendencias.length && !delegar) { setTentouConcluir(true); return; }
+      // A API exige a identificação básica antes de criar ou atualizar o cadastro.
+      if (!formularioValido) {
+        await alertaFluxo({ titleText: "Confira os dados de identificação", text: "Preencha nome, data de nascimento, curso, matrícula e período de ingresso, e corrija os campos inválidos. Esses dados identificam o cadastro antes de salvar e encaminhar as demais pendências.", icon: "warning" });
+        return;
+      }
+      const concluirEtapa = (concluir || continuar) && !delegar;
+      const confirmado = delegar || (concluirEtapa
+        ? await confirmarConclusaoAnamnese(formulario.nomeCompleto)
+        : await confirmarCadastroEstudante(modoEdicao ? "editar" : "salvar", formulario.nomeCompleto));
+      if (!confirmado) return;
       const request: EstudanteRequest = {
         ...formulario,
         outraNecessidadeEspecifica:
@@ -274,17 +314,21 @@ export default function AnamnesePage() {
       };
 
       if (modoEdicao && estudanteId !== null) {
-        await estudantesService.atualizar(Number(estudanteId), request);
+        await fluxoEstudanteService.salvarAnamnese(Number(estudanteId), request, concluirEtapa);
+        if (delegar) { setConcluir(false); if (await encaminharEtapa(idSalvo, "ANAMNESE", basePath)) { setTentativa(v => v + 1); if (continuar) navigate(`${basePath}/plano-acao?estudanteId=${idSalvo}`); } return; }
 
-        setSucesso("Estudante atualizado com sucesso.");
+        setSucesso(concluirEtapa ? "Anamnese concluída e vinculada ao estudante." : "Rascunho da anamnese salvo. Você pode continuar depois.");
 
         void Swal.fire({
           ...toastConfig,
           icon: "success",
-          title: "Estudante atualizado com sucesso!",
+          title: concluirEtapa ? "Anamnese concluída!" : "Rascunho da anamnese salvo!",
         });
       } else {
-        await estudantesService.cadastrar(request);
+        const estudanteSalvo = await estudantesService.cadastrar({ ...request, anamneseConcluida: concluirEtapa });
+        idSalvo = estudanteSalvo.id;
+        if (delegar) { setConcluir(false); const encaminhado = await encaminharEtapa(idSalvo, "ANAMNESE", basePath); navigate(encaminhado && continuar ? `${basePath}/plano-acao?estudanteId=${idSalvo}` : `${basePath}/anamnese?estudanteId=${idSalvo}`, { replace: true }); return; }
+        if (!continuar) navigate(`${basePath}/anamnese?estudanteId=${estudanteSalvo.id}`, { replace: true });
 
         setSucesso("Estudante cadastrado com sucesso.");
 
@@ -294,18 +338,17 @@ export default function AnamnesePage() {
           title: "Estudante cadastrado com sucesso!",
         });
 
-        setFormulario(formularioVazio);
+
       }
-    } catch {
-      setErro(
-        "Não foi possível salvar o estudante. Confira os dados e tente novamente.",
-      );
+      if (continuar) navigate(`${basePath}/plano-acao?estudanteId=${idSalvo}`);
+    } catch (error) {
+      setErro(mensagemErro(error));
 
       void Swal.fire({
         ...toastConfig,
         icon: "error",
         title: "Não foi possível salvar o estudante.",
-        text: "Confira os dados e tente novamente.",
+        text: mensagemErro(error),
       });
     } finally {
       envioPendente.current = false;
@@ -317,7 +360,7 @@ export default function AnamnesePage() {
     <main className="mx-auto w-full max-w-[1100px] space-y-6 pb-10">
       <header>
         <h1 className="text-2xl font-bold text-primary sm:text-[28px]">
-          Anamnese do estudante
+          Anamnese e cadastro inicial
         </h1>
         <p className="mt-1 text-sm text-slate-500">
           {modoEdicao
@@ -326,9 +369,12 @@ export default function AnamnesePage() {
         </p>
       </header>
 
+      <StudentFlow key={`${estudanteId}-${sucesso}-${tentativa}`} estudanteId={modoEdicao ? Number(estudanteId) : undefined} atual="anamnese" somenteLeitura={somenteLeitura} onRetry={() => setTentativa(v => v + 1)} />
+      {modoEdicao && estudanteCarregado && !carregando && <StudentExport estudanteId={Number(estudanteId)} tipo="anamnese" />}
       {erro && (
         <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           {erro}
+          <Button variant="secondary" className="ml-3" disabled={carregando} onClick={() => setTentativa(v => v + 1)}>Tentar novamente</Button>
         </div>
       )}
 
@@ -339,12 +385,13 @@ export default function AnamnesePage() {
       )}
 
       {carregando && <p role="status" className="text-sm text-slate-500">Carregando os dados do estudante...</p>}
-      {somenteLeitura && <p role="status" className="rounded-xl border border-sky-100 bg-sky-50 p-4 text-sm text-sky-900">Este cadastro está disponível somente para consulta. Estudantes concluídos não podem ser alterados.</p>}
-      <form
+      {estudanteCarregado && fluxoDisponivel && !podePreencher && <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">A coordenação precisa atribuir esta etapa à sua conta para permitir o preenchimento.</p>}
+      {estudanteCarregado && somenteLeitura && <p role="status" className="rounded-xl border border-sky-100 bg-sky-50 p-4 text-sm text-sky-900">Este cadastro está disponível somente para consulta. Estudantes concluídos não podem ser alterados.</p>}
+      {estudanteCarregado && <form
         onSubmit={salvar}
         className="space-y-6"
       >
-        <fieldset disabled={carregando || salvando || somenteLeitura} className="min-w-0 space-y-6">
+        <fieldset disabled={carregando || salvando || somenteLeitura || !podePreencher || !fluxoDisponivel} className="min-w-0 space-y-6">
         <section className="space-y-4 rounded-xl border border-[#d9e2d9] bg-white p-5 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-slate-900">
             1. Identificação do estudante
@@ -416,6 +463,7 @@ export default function AnamnesePage() {
             2. Informações sobre necessidades específicas
           </h2>
 
+          <div ref={necessidadeRef} className={tentouConcluir && concluir && formulario.possuiNecessidadeEspecifica === null ? "rounded-xl border border-red-300 bg-red-50 p-4" : undefined}>
           <CampoSimNao
             titulo="O estudante possui necessidade específica?"
             valor={formulario.possuiNecessidadeEspecifica}
@@ -432,6 +480,9 @@ export default function AnamnesePage() {
               }))
             }
           />
+          <p className="mt-2 text-xs text-slate-500">Responda Sim ou Não para concluir a anamnese. “Não informado” permite salvar como rascunho.</p>
+          {tentouConcluir && concluir && formulario.possuiNecessidadeEspecifica === null && <p role="alert" className="mt-3 text-sm font-semibold text-red-800">Para concluir a anamnese, responda Sim ou Não nesta pergunta. Se ainda não souber, desmarque “Marcar anamnese como concluída” e salve como rascunho.</p>}
+          </div>
 
           {formulario.possuiNecessidadeEspecifica !== false && (
             <>
@@ -620,19 +671,13 @@ export default function AnamnesePage() {
             Voltar para estudantes
           </button>
 
-          <button
-            type="submit"
-            disabled={salvando || carregando || somenteLeitura}
-            className="rounded-lg bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {salvando
-              ? "Salvando..."
-              : modoEdicao
-                ? "Salvar alterações"
-                : "Cadastrar estudante"}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={concluir} onChange={e => setConcluir(e.target.checked)} disabled={salvando || somenteLeitura || !podePreencher} className="accent-green-700" /> Marcar anamnese como concluída</label>
+            <Button type="submit" formNoValidate={concluir} disabled={salvando || carregando || somenteLeitura || !podePreencher || !fluxoDisponivel}>{salvando ? "Salvando..." : concluir ? "Concluir anamnese" : "Salvar para continuar depois"}</Button>
+            <Button type="submit" formNoValidate variant="secondary" name="acao" value="continuar" disabled={salvando || carregando || somenteLeitura || !podePreencher || !fluxoDisponivel}>Concluir e ir para plano de ação →</Button>
+          </div>
         </div>
-      </form>
+      </form>}
     </main>
   );
 }

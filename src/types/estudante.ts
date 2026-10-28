@@ -114,6 +114,7 @@ const nomesNecessidades: Record<TipoNecessidadeEspecifica, string> = {
 };
 
 export type EstudanteRequest = {
+  anamneseConcluida?: boolean;
    nomeCompleto: string;
    dataNascimento: string;
    curso: string;

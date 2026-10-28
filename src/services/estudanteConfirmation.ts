@@ -27,6 +27,10 @@ export async function confirmarCadastroEstudante(etapa: "abrir" | "salvar" | "ed
   const resultado = await Swal.fire({ ...padrao, target: getOverlayToolsHost(), titleText: etapa === "abrir" ? "Cadastrar um novo estudante?" : etapa === "editar" ? "Salvar alterações do estudante?" : "Confirmar cadastro do estudante?", text: etapa === "abrir" ? "Você abrirá o formulário de identificação inicial e anamnese. Confira os dados antes de salvar. Plano de Ação, PEI e RAI devem ser acompanhados nas etapas seguintes." : `${nome || "Estudante"}. ${etapa === "editar" ? "Os dados informados substituirão os valores atuais no cadastro." : "Os dados informados serão gravados e o estudante ficará disponível para acompanhamento."}`, icon: "question", iconColor: colorThemes.green["--accent-main"], confirmButtonColor: colorThemes.green["--accent-main"], confirmButtonText: etapa === "abrir" ? "Sim, iniciar cadastro" : "Sim, salvar" });
   return resultado.isConfirmed;
 }
+export async function confirmarConclusaoAnamnese(nome: string) {
+  const resultado = await Swal.fire({ ...padrao, target: getOverlayToolsHost(), titleText: "Concluir anamnese?", text: `As informações de ${nome} serão salvas e esta etapa ficará marcada como concluída.`, icon: "question", iconColor: colorThemes.green["--accent-main"], confirmButtonColor: colorThemes.green["--accent-main"], confirmButtonText: "Concluir anamnese" });
+  return resultado.isConfirmed;
+}
 export async function informarPoliticaExclusao() {
   await Swal.fire({ target: getOverlayToolsHost(), titleText: "Por que não posso excluir um estudante?", text: "Os cadastros de estudantes precisam ser preservados durante o prazo de guarda dos dados. Para suspender um cadastro, escolha Inativar. Para encerrar o acompanhamento, escolha Concluir. A exclusão definitiva segue as regras de guarda da instituição.", icon: "info", confirmButtonText: "Entendi", confirmButtonColor: colorThemes.blue["--accent-main"], heightAuto: false });
 }

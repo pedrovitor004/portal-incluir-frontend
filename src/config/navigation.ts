@@ -17,9 +17,7 @@ const navigation: NavigationItem[] = [
   { label: "Início", slug: "dashboard", icon: "home" },
   {
     label: "Estudantes", slug: "estudantes", icon: "students", permission: "estudantes.consultar", children: [
-      { label: "Plano de Ação", slug: "plano-acao", icon: "clipboard", permission: "planos.gerar" },
-      { label: "Anamnese", slug: "anamnese", icon: "clipboard", permission: "anamnese" },
-      { label: "PEI", slug: "pei", icon: "document", permission: "pei.consultar" },
+      { label: "Cadastro do estudante", slug: "cadastro-estudante", icon: "clipboard", permission: "anamnese" },
     ]
   },
   {

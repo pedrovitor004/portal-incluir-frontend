@@ -15,7 +15,6 @@ import {
 import { useNavigate } from "react-router";
 import { useAuth } from "../../../hooks/useAuth";
 import { accessProfiles, canAccess } from "../../../config/access";
-import { confirmarCadastroEstudante } from "../../../services/estudanteConfirmation";
 import { portalGridTheme, portalGridLocale } from "../../../config/gridTheme";
 import LoadingState from "../../../components/common/LoadingState";
 import StudentPanel from "./components/StudentPanel";
@@ -57,7 +56,7 @@ export default function GerenciarEstudantes({
     navigate(
       estudante
         ? `${destino}?estudanteId=${encodeURIComponent(String(estudante.id))}`
-        : destino,
+        : `${basePath}/cadastro-estudante`,
     );
   }
 
@@ -69,7 +68,6 @@ export default function GerenciarEstudantes({
     if (!podeEditar || cadastroPendente.current) return;
     cadastroPendente.current = true; setConfirmandoCadastro(true);
     try {
-      if (!await confirmarCadastroEstudante("abrir")) return;
       if (onNovoEstudante) onNovoEstudante(); else abrirAnamnese();
     } finally { cadastroPendente.current = false; setConfirmandoCadastro(false); }
   }
@@ -178,7 +176,7 @@ export default function GerenciarEstudantes({
         },
       },
       {
-        headerName: "Ações", colId: "acoes", pinned: "right", width: 208, minWidth: 208, maxWidth: 208,
+        headerName: "Ações", colId: "acoes", pinned: "right", width: 280, minWidth: 280, maxWidth: 280,
         sortable: false, filter: false, floatingFilter: false, resizable: false,
         cellRenderer: (params: ICellRendererParams<Estudante>) => {
           const estudante = params.data;
@@ -186,7 +184,7 @@ export default function GerenciarEstudantes({
           const classe = "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-green-100 bg-green-50 text-green-800 transition hover:border-green-300 hover:bg-green-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700";
           return <div className="flex h-full items-center gap-2">
             <button type="button" title="Abrir perfil" aria-label={`Abrir perfil de ${estudante.nome}`} onClick={() => abrirPerfilEstudante(estudante)} className={classe}><svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
-            <button type="button" title="Etapas e pendências" aria-label={`Ver etapas e pendências de ${estudante.nome}`} onClick={() => setPainel({ estudante, modo: "pendencias" })} className={classe}><svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 4H5v17h14V4h-4M9 3h6v3H9M8 11l1 1 2-2M13 11h3M8 16l1 1 2-2M13 16h3"/></svg></button>
+            <button type="button" title="Etapas e pendências" aria-label={`Ver etapas e pendências de ${estudante.nome}`} onClick={() => setPainel({ estudante, modo: "pendencias" })} className={`${classe} w-auto gap-2 px-3 text-xs font-semibold`}><svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 4H5v17h14V4h-4M9 3h6v3H9M8 11l1 1 2-2M13 11h3M8 16l1 1 2-2M13 16h3"/></svg>Pendências</button>
             {podeEditar && <button type="button" title="Gerenciar situação" aria-label={`Gerenciar situação de ${estudante.nome}`} onClick={() => setPainel({ estudante, modo: "acoes" })} className={classe}><svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h10m4 0h2M4 17h2m4 0h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>}
           </div>;
         },
