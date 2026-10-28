@@ -36,6 +36,8 @@ const navigation: NavigationItem[] = [
   {
     label: "Administração", slug: "administracao", icon: "shield", groupOnly: true,
     children: [
+      { label: "Solicitar acesso administrativo", slug: "administracao/solicitar", icon: "shield", profiles: ["COORDENADOR", "ADMINISTRADOR"] },
+      { label: "Solicitações de acesso", slug: "administracao/solicitacoes", icon: "users", permission: "usuarios.gerenciar", profiles: ["COORDENADOR", "ADMINISTRADOR"] },
       { label: "Usuários", slug: "administracao/usuarios", icon: "users", permission: "usuarios" },
       { label: "Permissões", slug: "administracao/permissoes", icon: "shield", permission: "permissoes" },
       { label: "Auditorias", slug: "administracao/auditorias", icon: "clipboard", permission: "auditorias" },

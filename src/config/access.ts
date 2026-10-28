@@ -16,8 +16,8 @@ const coordenador: Permission[] = [
 
 // Frontend policy only. The API must enforce permissions and student/professional scope.
 export const accessProfiles = {
-  COORDENADOR: { label: "Coordenador", basePath: "/coordenador", permissions: coordenador },
-  ADMINISTRADOR: { label: "Administrador", basePath: "/administrador", permissions: coordenador },
+  COORDENADOR: { label: "Coordenador", basePath: "/coordenador", permissions: coordenador.filter(p => !["usuarios", "usuarios.gerenciar", "permissoes", "permissoes.gerenciar", "auditorias"].includes(p)) },
+  ADMINISTRADOR: { label: "Administrador", basePath: "/administrador", permissions: coordenador.filter(p => !["usuarios", "usuarios.gerenciar", "permissoes", "permissoes.gerenciar", "auditorias"].includes(p)) },
   PROFESSOR: {
     label: "Professor", basePath: "/professor",
     permissions: ["estudantes.consultar", "pedagogico.consultar", "pedagogico.editar", "academico.gerar", "pei.consultar", "documentos"],
@@ -29,6 +29,7 @@ export const accessProfiles = {
 } satisfies Record<PerfilUsuario, { label: string; basePath: string; permissions: Permission[] }>;
 
 export function canAccess(conta: PerfilUsuario | Usuario, permission: Permission) {
+  if (typeof conta !== "string" && conta.root) return true;
   if (typeof conta !== "string" && conta.permissoes) return conta.permissoes.includes(permission);
   const perfil = typeof conta === "string" ? conta : conta.perfil;
   return (accessProfiles[perfil].permissions as readonly Permission[]).includes(permission);

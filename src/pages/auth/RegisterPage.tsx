@@ -2,11 +2,11 @@ import { areasEquipe } from "../../config/profissionais";
 import ProfessionalCoursesField from "../../components/common/ProfessionalCoursesField";
 import AccessibilitySymbols from "../../components/auth/AccessibilitySymbols";
 import LoadingState from "../../components/common/LoadingState";
-import { useAuth } from "../../hooks/useAuth";
-import { destinoUsuario, routes } from "../../config/routes";
+import { solicitacoesAcessoService } from "../../services/solicitacoesAcessoService";
+import { routes } from "../../config/routes";
 import { mensagemErro } from "../../services/apiError";
-import type { CadastroRequest } from "../../types/auth";
-import { Link, useNavigate } from "react-router";
+import type { CadastroRequest, SolicitacaoAcesso } from "../../types/auth";
+import { Link } from "react-router";
 import { Fragment, useState, type FormEvent } from "react";
 import logoClai from "../../assets/logos/logo-clai.png";
 import logoIfpb from "../../assets/logos/logo-ifpb.png";
@@ -128,8 +128,8 @@ function FormInput({ field }: { field: Field }) {
 }
 
 export default function RegisterPage() {
-  const navigate = useNavigate();
-  const { register } = useAuth();
+  const register = solicitacoesAcessoService.cadastrar;
+  const [solicitacao, setSolicitacao] = useState<SolicitacaoAcesso | null>(null);
   const [cursosAtuacao, setCursosAtuacao] = useState<string[]>([]);
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -159,8 +159,7 @@ export default function RegisterPage() {
     }
     setEnviando(true); setErro("");
     try {
-      const usuario = await register(request);
-      navigate(destinoUsuario(usuario), { replace: true });
+      setSolicitacao(await register(request));
     } catch (error) { setErro(mensagemErro(error)); }
     finally { setEnviando(false); }
   }
@@ -227,11 +226,11 @@ export default function RegisterPage() {
           <div className="w-full max-w-[560px]">
             <section className="flex flex-col rounded-2xl border border-emerald-100 bg-white p-5 shadow-[0_12px_40px_rgba(50,93,58,0.08)] sm:p-5">
               <SectionTitle
-                title="Registrar"
-                description="Preencha os dados abaixo para criar seu acesso institucional."
+                title={solicitacao ? "Solicitação enviada" : "Solicitar cadastro"}
+                description={solicitacao ? "Aguarde a análise da coordenação para acessar o portal." : "Envie seus dados para análise. Todo cadastro, inclusive de coordenador, depende de aprovação."}
               />
 
-              <div className="mt-3 space-y-3">
+              {solicitacao ? <div role="status" className="mt-5 space-y-4 rounded-xl border border-green-200 bg-green-50 p-5 text-sm leading-relaxed text-green-900"><p className="font-semibold">Protocolo nº {solicitacao.id} · Aguardando análise</p><p>Seu pedido foi enviado à coordenação, que tem 48 horas para analisar. O acesso será liberado somente se a solicitação for aprovada.</p><p>Depois da aprovação, entre com o e-mail {solicitacao.email} e a senha informada.</p><Link to={routes.login} className="inline-flex min-h-11 items-center font-semibold underline">Ir para o login</Link></div> : <div className="mt-3 space-y-3">
                 <fieldset>
                   <legend className="text-xs font-medium text-primary">Perfil de acesso</legend>
                   <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
@@ -253,7 +252,7 @@ export default function RegisterPage() {
                 </fieldset>
 
                 <form key={bondType} onSubmit={cadastrar} aria-busy={enviando} aria-describedby={erro ? "register-error" : undefined} onInput={() => { if (passwordMismatch) { setPasswordMismatch(false); setErro(""); } }} className="space-y-3">
-                  {enviando && <LoadingState compact label="Criando sua conta..." />}
+                  {enviando && <LoadingState compact label="Enviando solicitação..." />}
                   <p id="password-hint" className="text-xs text-slate-600">Preencha os campos obrigatórios. A senha deve ter entre 6 e 72 caracteres.</p>
                   {erro && <p id="register-error" role="alert" className="text-sm text-red-700">{erro}</p>}
                   <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
@@ -274,11 +273,11 @@ export default function RegisterPage() {
                     type="submit" disabled={enviando}
                     className="inline-flex w-full items-center justify-between rounded-lg bg-primary px-4 py-2 text-left text-sm font-semibold text-white shadow-[0_4px_12px_rgba(70,167,75,0.18)] transition hover:bg-primary focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200"
                   >
-                    <span>{enviando ? "Criando conta..." : "Criar conta"}</span>
+                    <span>{enviando ? "Enviando..." : "Enviar solicitação de cadastro"}</span>
                     <ArrowIcon />
                   </button>
                 </form>
-              </div>
+              </div>}
             </section>
 
             <div className="auth-footer mt-3 px-1 text-center">
