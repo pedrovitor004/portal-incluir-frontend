@@ -1,7 +1,6 @@
 import StudentDocumentGeneration from "./components/StudentDocumentGeneration";
 import StudentProfessionals from "./components/StudentProfessionals";
 import { useEffect, useRef, useState } from "react";
-import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import Swal from "sweetalert2";
 import axios from "axios";
@@ -145,7 +144,7 @@ function StudentProfile({ id }: { id: number }) {
                   type="button"
                   onClick={() =>
                     navigate(
-                      `${routes.planoAcaoCoordenador}?estudanteId=${encodeURIComponent(
+                      `${basePath}/plano-acao?estudanteId=${encodeURIComponent(
                         String(estudante.id),
                       )}`,
                     )
