@@ -1,91 +1,37 @@
-import axios from "axios";
 import { notificationService } from "../services/notificationService";
 import { mensagemErro } from "../services/apiError";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AuthContext } from "./AuthContext";
 import { authService } from "../services/authService";
 import { userSession } from "../services/sessionStorage";
 import { connectSessionTabs } from "../services/sessionTabs";
-import type { CadastroRequest, LoginRequest, PerfilUsuario, Usuario } from "../types/auth";
+import { createAuthSession } from "../services/authSession";
+import type { CadastroRequest, LoginRequest } from "../types/auth";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [usuario, setUsuario] = useState<Usuario | null>(() => userSession.read());
-  const sessionTabs = useRef<ReturnType<typeof connectSessionTabs> | null>(null);
-
+  const [sessao] = useState(() => createAuthSession(authService, userSession));
+  const estado = useSyncExternalStore(sessao.subscribe, sessao.getSnapshot);
+  const abas = useRef<ReturnType<typeof connectSessionTabs> | null>(null);
   useEffect(() => {
-    const sourceTab = new URL(window.location.href).searchParams.get("fromTab") ?? undefined;
-    const bridge = connectSessionTabs(() => userSession.read(), conta => {
-      if (conta) userSession.save(conta);
-      else userSession.clear();
-      setUsuario(conta);
-    }, sourceTab);
-    sessionTabs.current = bridge;
-    return () => { bridge.close(); sessionTabs.current = null; };
-  }, []);
-
-  useEffect(() => {
-    if (!usuario?.id) return;
-    let ativo = true;
-    let consultando = false;
-    const id = usuario.id;
-    async function conferir() {
-      if (consultando) return;
-      consultando = true;
-      try {
-        const atual = await authService.me();
-        if (ativo && userSession.read()?.id === id) { userSession.save(atual); setUsuario(atual); }
-      } catch (error) {
-        if (ativo && userSession.read()?.id === id && axios.isAxiosError(error) && [401, 403].includes(error.response?.status ?? 0)) { userSession.clear(); setUsuario(null); }
-      } finally { consultando = false; }
-    }
-    void conferir();
-    const timer = window.setInterval(() => void conferir(), 30000);
+    const conferir = () => { void sessao.refresh(); };
+    abas.current = connectSessionTabs(conferir);
+    conferir();
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible" && sessao.getSnapshot().usuario) conferir(); }, 30000);
     window.addEventListener("focus", conferir);
-    return () => { ativo = false; window.clearInterval(timer); window.removeEventListener("focus", conferir); };
-  }, [usuario?.id]);
-
-  function atualizarSessao(conta: Usuario) {
-    userSession.save(conta);
-    setUsuario(conta);
-    return conta;
-  }
+    window.addEventListener("portal:session-check", conferir);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", conferir); window.removeEventListener("portal:session-check", conferir); abas.current?.close(); abas.current = null; };
+  }, [sessao]);
   async function login(request: LoginRequest) {
-    try {
-      const conta = atualizarSessao(await authService.login(request));
-      notificationService.success("Login realizado com sucesso!");
-      return conta;
-    } catch (error) {
-      notificationService.error(mensagemErro(error));
-      throw error;
-    }
+    try { const usuario = await sessao.login(request); abas.current?.changed(); notificationService.success("Login realizado com sucesso!"); return usuario; }
+    catch (erro) { notificationService.error(mensagemErro(erro)); throw erro; }
   }
   async function register(request: CadastroRequest) {
-    try {
-      const conta = atualizarSessao(await authService.register(request));
-      notificationService.success("Conta criada com sucesso!");
-      return conta;
-    } catch (error) {
-      notificationService.error(mensagemErro(error));
-      throw error;
-    }
+    try { const usuario = await sessao.register(request); abas.current?.changed(); notificationService.success("Conta criada com sucesso!"); return usuario; }
+    catch (erro) { notificationService.error(mensagemErro(erro)); throw erro; }
   }
-  function logout() {
-    void authService.logout().catch(() => notificationService.error("Não foi possível encerrar a sessão no servidor. Tente entrar e sair novamente."));
-    const userId = userSession.read()?.id;
-    userSession.clear();
-    if (userId !== undefined) sessionTabs.current?.logout(userId);
-    setUsuario(null);
-    notificationService.info("Você saiu da sua conta.");
+  async function logout() {
+    try { await sessao.logout(); abas.current?.changed(); notificationService.info("Você saiu da sua conta."); return true; }
+    catch { notificationService.error("Não foi possível encerrar a sessão no servidor. Tente novamente."); return false; }
   }
-
-  function atualizarDadosPerfil(perfil: PerfilUsuario, perfilId: number, dados: { nome: string; email?: string }) {
-    setUsuario(atual => {
-      if (!atual || atual.perfil !== perfil || atual.perfilId !== perfilId) return atual;
-      const atualizado = { ...atual, nome: dados.nome, email: dados.email ?? atual.email };
-      userSession.save(atualizado);
-      return atualizado;
-    });
-  }
-
-  return <AuthContext.Provider value={{ usuario, login, register, logout, atualizarDadosPerfil }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ ...estado, login, register, logout, atualizarSessao: sessao.refresh, atualizarDadosPerfil: sessao.atualizarPerfil }}>{children}</AuthContext.Provider>;
 }

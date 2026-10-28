@@ -3,9 +3,12 @@ import type { CadastroRequest, LoginRequest, PerfilUsuario, Usuario } from "../t
 
 export interface AuthContextValue {
   usuario: Usuario | null;
+  carregando: boolean;
+  erroSessao: string;
+  atualizarSessao(): Promise<void>;
   login(request: LoginRequest): Promise<Usuario>;
   register(request: CadastroRequest): Promise<Usuario>;
-  logout(): void;
+  logout(): Promise<boolean>;
   atualizarDadosPerfil(perfil: PerfilUsuario, perfilId: number, dados: { nome: string; email?: string }): void;
 }
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);

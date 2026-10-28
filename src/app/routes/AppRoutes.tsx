@@ -43,7 +43,10 @@ function PerfilRoute({
   children,
   permission,
 }: PerfilRouteProps) {
-  const { usuario } = useAuth();
+  const { usuario, carregando, erroSessao, atualizarSessao } = useAuth();
+
+  if (carregando) return <LoadingState label="Confirmando sua sessão..." />;
+  if (erroSessao && !usuario) return <div role="alert" className="mx-auto max-w-xl space-y-4 p-8"><p>Não foi possível confirmar sua sessão. {erroSessao}</p><button type="button" onClick={() => void atualizarSessao()} className="min-h-11 font-semibold text-green-800 underline">Tentar novamente</button></div>;
 
   if (!usuario) {
     return <Navigate to={routes.login} replace />;
