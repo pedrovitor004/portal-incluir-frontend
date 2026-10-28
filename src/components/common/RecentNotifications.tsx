@@ -1,4 +1,4 @@
-﻿import ResourceIcon from "../icons/ResourceIcon";
+import ResourceIcon from "../icons/ResourceIcon";
 import { useNotificacoes } from "../../hooks/useNotificacoes";
 import NotificationsList from "../notifications/NotificationsList";
 export default function RecentNotifications() {
