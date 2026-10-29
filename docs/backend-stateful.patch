@@ -1,0 +1,460 @@
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/config/RootInicialConfig.java
+@@ -0,0 +1,20 @@
++package br.com.portalincluir.config;
++import br.com.portalincluir.repository.UsuarioRepository;
++import br.com.portalincluir.service.UsuarioService;
++import br.com.portalincluir.dto.request.CadastroUsuarioRequest;
++import br.com.portalincluir.enums.PerfilUsuario;
++import lombok.RequiredArgsConstructor;
++import org.springframework.boot.ApplicationArguments;
++import org.springframework.boot.ApplicationRunner;
++import org.springframework.stereotype.Component;
++import org.springframework.transaction.annotation.Transactional;
++@Component @RequiredArgsConstructor
++public class RootInicialConfig implements ApplicationRunner {
++  private final UsuarioRepository usuarios;
++  private final UsuarioService contas;
++  @Override @Transactional public void run(ApplicationArguments args) {
++    if (usuarios.findByRootTrue().isPresent()) return;
++    var r=new CadastroUsuarioRequest(); r.setNome("Administrador geral"); r.setEmail("root@portal-incluir.local"); r.setSenha("0123456789"); r.setMatricula("ROOT-SISTEMA"); r.setPerfil(PerfilUsuario.COORDENADOR); r.setCargo("Administrador geral"); r.setSetor("Portal Incluir");
++    var criada=contas.cadastrar(r); var u=usuarios.findById(criada.id()).orElseThrow(); u.setRoot(true); u.setAdministracaoAprovada(true); usuarios.saveAndFlush(u);
++  }
++}
+--- a/src/main/java/br/com/portalincluir/config/SecurityConfig.java
++++ b/src/main/java/br/com/portalincluir/config/SecurityConfig.java
+@@ -11 +11 @@
+-/** Etapa de integração: endpoints públicos, sem JWT ou autorização por perfil. */
++/** Sessão HttpSession; autorização por operação no PermissaoWebConfig e nos controllers. */
+@@ -17 +17,3 @@
+-        return http.cors(cors -> cors.configurationSource(corsConfigurationSource))
++        return http.cors(cors -> cors.configurationSource(corsConfigurationSource))
++                .sessionManagement(session -> session.sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED))
++                .requestCache(cache -> cache.disable())
+--- a/src/main/java/br/com/portalincluir/controller/AuthController.java
++++ b/src/main/java/br/com/portalincluir/controller/AuthController.java
+@@ -14,3 +14,4 @@
+-    private final br.com.portalincluir.service.PermissaoService acesso;
+-    @GetMapping("/me")
+-    public UsuarioResponse sessao(HttpServletRequest http) { return service.resposta(acesso.autenticado(http)); }
++    private final br.com.portalincluir.service.PermissaoService acesso;
++    private final br.com.portalincluir.service.SolicitacaoAcessoService solicitacoes;
++    @GetMapping("/me")
++    public org.springframework.http.ResponseEntity<UsuarioResponse> sessao(HttpServletRequest http) { return org.springframework.http.ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(service.resposta(acesso.autenticado(http))); }
+@@ -18,7 +19,2 @@
+-    public UsuarioResponse cadastrar(@Valid @RequestBody CadastroUsuarioRequest request, HttpServletRequest http) {
+-        if ((request.getPerfil() == br.com.portalincluir.enums.PerfilUsuario.COORDENADOR || request.getPerfil() == br.com.portalincluir.enums.PerfilUsuario.ADMINISTRADOR) && service.possuiContas()) { acesso.exigir(http, "usuarios.gerenciar"); acesso.exigir(http, "permissoes.gerenciar"); }
+-        var usuario = service.cadastrar(request);
+-        var anterior = http.getSession(false);
+-        if (anterior != null) anterior.invalidate();
+-        http.getSession(true).setAttribute("usuarioAutenticadoId", usuario.id());
+-        return usuario;
++    public br.com.portalincluir.service.SolicitacaoAcessoService.Resposta cadastrar(@Valid @RequestBody CadastroUsuarioRequest request) {
++        return solicitacoes.solicitar(request);
+@@ -28,3 +24,3 @@
+-        var anterior = http.getSession(false);
+-        if (anterior != null) anterior.invalidate();
+-        var usuario = service.login(request);
++        var usuario = service.login(request);
++        var anterior = http.getSession(false);
++        if (anterior != null) anterior.invalidate();
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/controller/SolicitacaoAcessoController.java
+@@ -0,0 +1,17 @@
++package br.com.portalincluir.controller;
++import br.com.portalincluir.service.SolicitacaoAcessoService;
++import jakarta.servlet.http.HttpServletRequest;
++import jakarta.validation.Valid;
++import jakarta.validation.constraints.*;
++import lombok.RequiredArgsConstructor;
++import org.springframework.web.bind.annotation.*;
++import java.util.List;
++@RestController @RequestMapping("/api/solicitacoes-acesso") @RequiredArgsConstructor
++public class SolicitacaoAcessoController {
++  private final SolicitacaoAcessoService service;
++  @PostMapping("/administracao") public SolicitacaoAcessoService.Resposta solicitarAdministracao(HttpServletRequest req) { return service.solicitarAdministracao(req); }
++  @GetMapping("/minhas") public List<SolicitacaoAcessoService.Resposta> minhas(HttpServletRequest req) { return service.minhas(req); }
++  public record Decisao(@NotNull Boolean aprovar, @Size(max=1000) String motivo) {}
++  @GetMapping public List<SolicitacaoAcessoService.Resposta> listar(HttpServletRequest req,@RequestParam(defaultValue="false") boolean todas) { return service.listar(req,todas); }
++  @PostMapping("/{id}/decisao") public SolicitacaoAcessoService.Resposta decidir(@PathVariable Long id,@Valid @RequestBody Decisao r,HttpServletRequest req) { return service.decidir(id,r.aprovar(),r.motivo(),req); }
++}
+--- a/src/main/java/br/com/portalincluir/dto/request/LoginRequest.java
++++ b/src/main/java/br/com/portalincluir/dto/request/LoginRequest.java
+@@ -3 +3 @@
+-public record LoginRequest(@NotBlank @Email String email, @NotBlank String senha) {}
++public record LoginRequest(@NotBlank @Size(max=150) String email, @NotBlank String senha) {}
+--- a/src/main/java/br/com/portalincluir/dto/response/UsuarioResponse.java
++++ b/src/main/java/br/com/portalincluir/dto/response/UsuarioResponse.java
+@@ -4,2 +4,3 @@
+-public record UsuarioResponse(Long id, String nome, String email, PerfilUsuario perfil, Long perfilId, Set<String> permissoes) {
+-    public UsuarioResponse(Long id, String nome, String email, PerfilUsuario perfil, Long perfilId) { this(id, nome, email, perfil, perfilId, Set.of()); }
++public record UsuarioResponse(Long id, String nome, String email, PerfilUsuario perfil, Long perfilId, Set<String> permissoes, boolean root, boolean administracaoAprovada) {
++    public UsuarioResponse(Long id, String nome, String email, PerfilUsuario perfil, Long perfilId) { this(id, nome, email, perfil, perfilId, Set.of(),false,false); }
++    public UsuarioResponse(Long id, String nome, String email, PerfilUsuario perfil, Long perfilId, Set<String> permissoes) { this(id,nome,email,perfil,perfilId,permissoes,false,false); }
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/model/SolicitacaoAcesso.java
+@@ -0,0 +1,25 @@
++package br.com.portalincluir.model;
++import jakarta.persistence.*;
++import lombok.Getter;
++import lombok.Setter;
++import java.time.LocalDateTime;
++@Entity @Getter @Setter @org.hibernate.envers.Audited
++@Table(name="solicitacoes_acesso", indexes=@Index(name="idx_solicitacao_status_data", columnList="status,criada_em"))
++public class SolicitacaoAcesso {
++  @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id;
++  @Version private long versao;
++  @Column(nullable=false, length=30) private String tipo="CADASTRO";
++  private Long solicitanteId;
++  @Column(nullable=false, length=150) private String nome;
++  @Column(nullable=false, length=150) private String email;
++  @Column(unique=true, length=150) private String emailPendente;
++  @Column(nullable=false, length=40) private String perfil;
++  @Column(nullable=false, length=20) private String status="PENDENTE";
++  @Column(nullable=false, length=12000) private String dadosJson;
++  @org.hibernate.envers.NotAudited @Column(length=100) private String senhaHash;
++  @Column(name="criada_em", nullable=false) private LocalDateTime criadaEm;
++  private LocalDateTime analisadaEm;
++  private Long analisadaPor;
++  private Long usuarioId;
++  @Column(length=1000) private String motivo;
++}
+--- a/src/main/java/br/com/portalincluir/model/Usuario.java
++++ b/src/main/java/br/com/portalincluir/model/Usuario.java
+@@ -15 +15,5 @@
+-    private Long id;
++    private Long id;
++    @Column(nullable=false) @org.hibernate.annotations.ColumnDefault("false")
++    private boolean root;
++    @Column(nullable=false) @org.hibernate.annotations.ColumnDefault("false")
++    private boolean administracaoAprovada;
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/repository/SolicitacaoAcessoRepository.java
+@@ -0,0 +1,12 @@
++package br.com.portalincluir.repository;
++import br.com.portalincluir.model.SolicitacaoAcesso;
++import org.springframework.data.jpa.repository.*;
++import org.springframework.data.repository.query.Param;
++import jakarta.persistence.LockModeType;
++import java.util.*;
++public interface SolicitacaoAcessoRepository extends JpaRepository<SolicitacaoAcesso,Long> {
++  boolean existsByEmailPendente(String email);
++  List<SolicitacaoAcesso> findAllByOrderByCriadaEmAscIdAsc();
++  @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select s from SolicitacaoAcesso s where s.id=:id")
++  Optional<SolicitacaoAcesso> bloquear(@Param("id") Long id);
++}
+--- a/src/main/java/br/com/portalincluir/repository/UsuarioRepository.java
++++ b/src/main/java/br/com/portalincluir/repository/UsuarioRepository.java
+@@ -10 +10,2 @@
+-    boolean existsByEmailIgnoreCase(String email);
++    boolean existsByEmailIgnoreCase(String email);
++    Optional<Usuario> findByRootTrue();
+--- a/src/main/java/br/com/portalincluir/service/GestaoUsuarioService.java
++++ b/src/main/java/br/com/portalincluir/service/GestaoUsuarioService.java
+@@ -20 +20 @@
+-    public record Detalhe(Long id, String nome, String email, Object perfil, Long perfilId, boolean ativo, Map<String,Object> dados, Set<String> permissoesPadrao, Map<String,Boolean> ajustes, Set<String> permissoes, Set<String> cursosAtuacao) {}
++    public record Detalhe(Long id, String nome, String email, Object perfil, Long perfilId, boolean ativo, Map<String,Object> dados, Set<String> permissoesPadrao, Map<String,Boolean> ajustes, Set<String> permissoes, Set<String> cursosAtuacao, boolean root, boolean administracaoAprovada) {}
+@@ -32 +32 @@
+-        return new Detalhe(u.getId(), (String)p.getPropertyValue("nome"), u.getEmail(), u.getPerfil(), (Long)p.getPropertyValue("id"), PermissaoService.ativo(u), dados, PermissaoService.padrao(u.getPerfil()), new TreeMap<>(u.getPermissoesIndividuais()), PermissaoService.efetivas(u), u.getProfessor() == null ? Set.of() : new TreeSet<>(u.getProfessor().getCursosAtuacao()));
++        return new Detalhe(u.getId(), (String)p.getPropertyValue("nome"), u.getEmail(), u.getPerfil(), (Long)p.getPropertyValue("id"), PermissaoService.ativo(u), dados, u.isRoot() ? PermissaoService.CATALOGO : PermissaoService.padrao(u.getPerfil()), new TreeMap<>(u.getPermissoesIndividuais()), PermissaoService.efetivas(u), u.getProfessor() == null ? Set.of() : new TreeSet<>(u.getProfessor().getCursosAtuacao()), u.isRoot(), u.isAdministracaoAprovada());
+@@ -34,0 +35 @@
++    private void protegerRoot(Usuario u) { if (u.isRoot()) throw new ResponseStatusException(HttpStatus.CONFLICT, "A conta root não pode ser alterada pela gestão de outras contas."); }
+@@ -43 +44 @@
+-        Usuario u = buscar(id);
++        Usuario u = buscar(id); protegerRoot(u);
+@@ -61 +62 @@
+-        Usuario u = buscar(id);
++        Usuario u = buscar(id); protegerRoot(u);
+@@ -70 +71 @@
+-        usuarios.bloquearParaGestao(); Usuario u = buscar(id); impedirPropriaConta(id, autor); preservarGestao(u, false, Set.of());
++        usuarios.bloquearParaGestao(); Usuario u = buscar(id); protegerRoot(u); impedirPropriaConta(id, autor); preservarGestao(u, false, Set.of());
+@@ -75 +76 @@
+-        usuarios.bloquearParaGestao(); Usuario u = buscar(id); impedirPropriaConta(id, autor);
++        usuarios.bloquearParaGestao(); Usuario u = buscar(id); protegerRoot(u); impedirPropriaConta(id, autor);
+@@ -76,0 +78 @@
++        if (!u.isAdministracaoAprovada() && ajustes.entrySet().stream().anyMatch(e -> Boolean.TRUE.equals(e.getValue()) && PermissaoService.ADMINISTRATIVAS.contains(e.getKey()))) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O acesso administrativo exige uma solicitação aprovada pelo root.");
+--- a/src/main/java/br/com/portalincluir/service/PermissaoService.java
++++ b/src/main/java/br/com/portalincluir/service/PermissaoService.java
+@@ -17 +17,2 @@
+-    private final UsuarioRepository usuarios;
++    private final UsuarioRepository usuarios;
++    public static final Set<String> ADMINISTRATIVAS = Set.of("usuarios", "usuarios.gerenciar", "permissoes", "permissoes.gerenciar", "auditorias");
+@@ -21 +22 @@
+-            case COORDENADOR, ADMINISTRADOR -> CATALOGO;
++            case COORDENADOR, ADMINISTRADOR -> { var p=new TreeSet<>(CATALOGO); p.removeAll(ADMINISTRATIVAS); yield p; }
+@@ -34 +35,2 @@
+-    public static Set<String> efetivas(Usuario usuario) {
++    public static Set<String> efetivas(Usuario usuario) {
++        if (usuario.isRoot()) return CATALOGO;
+@@ -36 +38,2 @@
+-        usuario.getPermissoesIndividuais().forEach((codigo, permitido) -> { if (permitido) resultado.add(codigo); else resultado.remove(codigo); });
++        usuario.getPermissoesIndividuais().forEach((codigo, permitido) -> { if (permitido) resultado.add(codigo); else resultado.remove(codigo); });
++        if (!usuario.isAdministracaoAprovada()) resultado.removeAll(ADMINISTRATIVAS);
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/service/SolicitacaoAcessoService.java
+@@ -0,0 +1,81 @@
++package br.com.portalincluir.service;
++import br.com.portalincluir.model.*;
++import br.com.portalincluir.repository.*;
++import br.com.portalincluir.dto.request.CadastroUsuarioRequest;
++import br.com.portalincluir.enums.PerfilUsuario;
++import br.com.portalincluir.config.CatalogoProfissional;
++import com.fasterxml.jackson.databind.*;
++import com.fasterxml.jackson.databind.node.ObjectNode;
++import jakarta.servlet.http.HttpServletRequest;
++import lombok.RequiredArgsConstructor;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++import org.springframework.security.crypto.password.PasswordEncoder;
++import org.springframework.http.HttpStatus;
++import org.springframework.web.server.ResponseStatusException;
++import java.time.*;
++import java.util.*;
++@Service @RequiredArgsConstructor @Transactional
++public class SolicitacaoAcessoService {
++  private final SolicitacaoAcessoRepository solicitacoes;
++  private final UsuarioRepository usuarios;
++  private final UsuarioService contas;
++  private final PasswordEncoder encoder;
++  private final ObjectMapper json;
++  private final PermissaoService acesso;
++  private final PoliticaHistoricoService tempo;
++  public record Resposta(Long id, String tipo, String nome, String email, String perfil, String status, LocalDateTime criadaEm, LocalDateTime prazoAnalise, long diasPendente, boolean atrasada, LocalDateTime analisadaEm, Long usuarioId, String motivo, JsonNode dados) {}
++  private Resposta resposta(SolicitacaoAcesso s, boolean detalhes) {
++    boolean pendente=s.getStatus().equals("PENDENTE");
++    long horas=Math.max(0, Duration.between(s.getCriadaEm(),tempo.agora()).toHours());
++    try { return new Resposta(s.getId(),s.getTipo(),s.getNome(),s.getEmail(),s.getPerfil(),s.getStatus(),s.getCriadaEm(),s.getCriadaEm().plusHours(48),horas/24,pendente && !tempo.agora().isBefore(s.getCriadaEm().plusHours(48)),s.getAnalisadaEm(),s.getUsuarioId(),s.getMotivo(),detalhes ? json.readTree(s.getDadosJson()) : null); }
++    catch (Exception e) { throw new IllegalStateException("Dados de solicitação inválidos",e); }
++  }
++  private Usuario gestor(HttpServletRequest req) {
++    var u=acesso.exigir(req,"usuarios.gerenciar");
++    if (u.getPerfil()!=PerfilUsuario.COORDENADOR && u.getPerfil()!=PerfilUsuario.ADMINISTRADOR) throw new ResponseStatusException(HttpStatus.FORBIDDEN,"A análise de acesso é reservada à coordenação");
++    return u;
++  }
++  public Resposta solicitar(CadastroUsuarioRequest r) {
++    if (r.getPerfil()==PerfilUsuario.ADMINISTRADOR) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Selecione professor, coordenador ou equipe multidisciplinar");
++    r.setEmail(r.getEmail().strip().toLowerCase(Locale.ROOT)); r.setNome(r.getNome().strip()); r.setMatricula(r.getMatricula().strip());
++    if (usuarios.existsByEmailIgnoreCase(r.getEmail()) || solicitacoes.existsByEmailPendente(r.getEmail())) throw new ResponseStatusException(HttpStatus.CONFLICT,"Já existe uma conta ou solicitação pendente para este e-mail");
++    if (r.getSetor()==null || r.getSetor().isBlank() || r.getPerfil()!=PerfilUsuario.PROFESSOR && (r.getCargo()==null || r.getCargo().isBlank())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Preencha setor e cargo quando obrigatório");
++    if (r.getPerfil()==PerfilUsuario.PROFESSOR) r.setCursosAtuacao(CatalogoProfissional.cursos(r.getCursosAtuacao()));
++    if (r.getPerfil()==PerfilUsuario.EQUIPE_MULTIDISCIPLINAR) r.setAreaAtuacao(CatalogoProfissional.area(r.getAreaAtuacao()));
++    var s=new SolicitacaoAcesso(); s.setNome(r.getNome()); s.setEmail(r.getEmail()); s.setEmailPendente(r.getEmail()); s.setPerfil(r.getPerfil().name()); s.setCriadaEm(tempo.agora()); s.setSenhaHash(encoder.encode(r.getSenha()));
++    ObjectNode dados=json.valueToTree(r); dados.remove("senha"); s.setDadosJson(dados.toString());
++    return resposta(solicitacoes.saveAndFlush(s),false);
++  }
++  @Transactional(readOnly=true) public List<Resposta> listar(HttpServletRequest req, boolean todas) {
++    var autor=gestor(req); return solicitacoes.findAllByOrderByCriadaEmAscIdAsc().stream().filter(s -> autor.isRoot() || !s.getTipo().equals("ADMINISTRACAO")).filter(s -> todas || s.getStatus().equals("PENDENTE")).map(s -> resposta(s,true)).toList();
++  }
++  public Resposta solicitarAdministracao(HttpServletRequest req) {
++    var u=acesso.autenticado(req);
++    if (u.getPerfil()!=PerfilUsuario.COORDENADOR && u.getPerfil()!=PerfilUsuario.ADMINISTRADOR) throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Somente coordenadores podem solicitar acesso administrativo");
++    if (u.isRoot() || u.isAdministracaoAprovada()) throw new ResponseStatusException(HttpStatus.CONFLICT,"Seu acesso administrativo já está aprovado");
++    String chave="admin:"+u.getId();
++    if (solicitacoes.existsByEmailPendente(chave)) throw new ResponseStatusException(HttpStatus.CONFLICT,"Você já possui uma solicitação administrativa pendente");
++    var dados=contas.resposta(u); var s=new SolicitacaoAcesso(); s.setTipo("ADMINISTRACAO"); s.setSolicitanteId(u.getId()); s.setNome(dados.nome()); s.setEmail(u.getEmail()); s.setPerfil(u.getPerfil().name()); s.setEmailPendente(chave); s.setCriadaEm(tempo.agora()); s.setDadosJson(json.createObjectNode().put("nome",dados.nome()).put("email",u.getEmail()).toString());
++    return resposta(solicitacoes.saveAndFlush(s),false);
++  }
++  @Transactional(readOnly=true) public List<Resposta> minhas(HttpServletRequest req) {
++    var u=acesso.autenticado(req); return solicitacoes.findAllByOrderByCriadaEmAscIdAsc().stream().filter(s -> u.getId().equals(s.getSolicitanteId())).map(s -> resposta(s,false)).toList();
++  }
++  public Resposta decidir(Long id, boolean aprovar, String motivo, HttpServletRequest req) {
++    var autor=gestor(req); var s=solicitacoes.bloquear(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Solicitação não encontrada"));
++    if (!s.getStatus().equals("PENDENTE")) throw new ResponseStatusException(HttpStatus.CONFLICT,"Esta solicitação já foi analisada");
++    if (s.getTipo().equals("ADMINISTRACAO") && !autor.isRoot()) throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Somente o root pode analisar acesso administrativo");
++    if (s.getPerfil().equals("COORDENADOR")) acesso.exigir(req,"permissoes.gerenciar");
++    if (aprovar && s.getTipo().equals("ADMINISTRACAO")) {
++      var alvo=usuarios.findById(s.getSolicitanteId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
++      if (!PermissaoService.ativo(alvo)) throw new ResponseStatusException(HttpStatus.CONFLICT,"A conta solicitante está inativa");
++      alvo.setAdministracaoAprovada(true); PermissaoService.ADMINISTRATIVAS.forEach(p -> alvo.getPermissoesIndividuais().put(p,true)); usuarios.saveAndFlush(alvo); s.setUsuarioId(alvo.getId());
++    } else if (aprovar) {
++      try { var dados=json.treeToValue(json.readTree(s.getDadosJson()),CadastroUsuarioRequest.class); var conta=contas.cadastrarAprovado(dados,s.getSenhaHash()); s.setUsuarioId(conta.id()); }
++      catch (com.fasterxml.jackson.core.JsonProcessingException e) { throw new IllegalStateException(e); }
++    }
++    s.setStatus(aprovar ? "APROVADA" : "RECUSADA"); s.setAnalisadaEm(tempo.agora()); s.setAnalisadaPor(autor.getId()); s.setMotivo(motivo); s.setEmailPendente(null); s.setSenhaHash(null);
++    return resposta(solicitacoes.saveAndFlush(s),true);
++  }
++}
+--- a/src/main/java/br/com/portalincluir/service/UsuarioService.java
++++ b/src/main/java/br/com/portalincluir/service/UsuarioService.java
+@@ -29,0 +30,3 @@
++    @Transactional(readOnly = true)
++    public boolean possuiGestores() { return usuarios.findAll().stream().anyMatch(u -> u.getPerfil() == br.com.portalincluir.enums.PerfilUsuario.COORDENADOR || u.getPerfil() == br.com.portalincluir.enums.PerfilUsuario.ADMINISTRADOR); }
++
+@@ -31,0 +35,10 @@
++        return cadastrarInterno(r, encoder.encode(r.getSenha()));
++    }
++
++    @Transactional
++    public UsuarioResponse cadastrarAprovado(CadastroUsuarioRequest r, String senhaHash) {
++        if (senhaHash == null || !senhaHash.startsWith("$2")) throw new IllegalArgumentException("Senha da solicitação inválida");
++        return cadastrarInterno(r, senhaHash);
++    }
++
++    private UsuarioResponse cadastrarInterno(CadastroUsuarioRequest r, String senhaHash) {
+@@ -41 +54 @@
+-        u.setSenha(encoder.encode(r.getSenha()));
++        u.setSenha(senhaHash);
+@@ -73 +86 @@
+-        Usuario u = usuarios.findByEmailIgnoreCase(r.email().strip())
++        Usuario u = (r.email().strip().equalsIgnoreCase("root") ? usuarios.findByRootTrue() : usuarios.findByEmailIgnoreCase(r.email().strip()))
+@@ -88,4 +101,4 @@
+-            case COORDENADOR -> new UsuarioResponse(u.getId(), u.getCoordenador().getNome(), u.getEmail(), u.getPerfil(), u.getCoordenador().getId(), PermissaoService.efetivas(u));
+-            case PROFESSOR -> new UsuarioResponse(u.getId(), u.getProfessor().getNome(), u.getEmail(), u.getPerfil(), u.getProfessor().getId(), PermissaoService.efetivas(u));
+-            case ADMINISTRADOR -> new UsuarioResponse(u.getId(), u.getAdministrador().getNome(), u.getEmail(), u.getPerfil(), u.getAdministrador().getId(), PermissaoService.efetivas(u));
+-            case EQUIPE_MULTIDISCIPLINAR -> new UsuarioResponse(u.getId(), u.getEquipeMultidisciplinar().getNome(), u.getEmail(), u.getPerfil(), u.getEquipeMultidisciplinar().getId(), PermissaoService.efetivas(u));
++            case COORDENADOR -> new UsuarioResponse(u.getId(), u.getCoordenador().getNome(), u.getEmail(), u.getPerfil(), u.getCoordenador().getId(), PermissaoService.efetivas(u), u.isRoot(), u.isAdministracaoAprovada());
++            case PROFESSOR -> new UsuarioResponse(u.getId(), u.getProfessor().getNome(), u.getEmail(), u.getPerfil(), u.getProfessor().getId(), PermissaoService.efetivas(u), u.isRoot(), u.isAdministracaoAprovada());
++            case ADMINISTRADOR -> new UsuarioResponse(u.getId(), u.getAdministrador().getNome(), u.getEmail(), u.getPerfil(), u.getAdministrador().getId(), PermissaoService.efetivas(u), u.isRoot(), u.isAdministracaoAprovada());
++            case EQUIPE_MULTIDISCIPLINAR -> new UsuarioResponse(u.getId(), u.getEquipeMultidisciplinar().getNome(), u.getEmail(), u.getPerfil(), u.getEquipeMultidisciplinar().getId(), PermissaoService.efetivas(u), u.isRoot(), u.isAdministracaoAprovada());
+--- a/src/main/resources/application.properties
++++ b/src/main/resources/application.properties
+@@ -38,0 +39,5 @@
++server.servlet.session.timeout=${SESSION_TIMEOUT:30m}
++server.servlet.session.cookie.http-only=true
++server.servlet.session.cookie.same-site=lax
++server.servlet.session.cookie.secure=${SESSION_COOKIE_SECURE:false}
++server.servlet.session.tracking-modes=cookie
+--- a/src/test/java/br/com/portalincluir/controller/GestaoPermissoesTest.java
++++ b/src/test/java/br/com/portalincluir/controller/GestaoPermissoesTest.java
+@@ -36 +36 @@
+-        return service.cadastrar(r).id();
++        var id=service.cadastrar(r).id(); if (perfil==PerfilUsuario.COORDENADOR) { var u=usuarios.findById(id).orElseThrow(); u.setAdministracaoAprovada(true); PermissaoService.ADMINISTRATIVAS.forEach(c -> u.getPermissoesIndividuais().put(c,true)); usuarios.saveAndFlush(u); } return id;
+@@ -46,3 +46,3 @@
+-        mvc.perform(put("/api/usuarios/"+prof+"/permissoes").session(gestor).contentType(MediaType.APPLICATION_JSON).content("{\"ajustes\":{\"usuarios\":true}}"))
+-            .andExpect(status().isOk()).andExpect(jsonPath("ajustes.usuarios").value(true));
+-        mvc.perform(get("/api/usuarios").session(pessoa)).andExpect(status().isOk());
++        mvc.perform(put("/api/usuarios/"+prof+"/permissoes").session(gestor).contentType(MediaType.APPLICATION_JSON).content("{\"ajustes\":{\"planos.gerar\":true}}"))
++            .andExpect(status().isOk()).andExpect(jsonPath("ajustes['planos.gerar']").value(true));
++        mvc.perform(get("/api/usuarios").session(pessoa)).andExpect(status().isForbidden());
+@@ -53 +53 @@
+-        assertTrue(usuarios.findById(prof).orElseThrow().getPermissoesIndividuais().get("usuarios"));
++        assertTrue(usuarios.findById(prof).orElseThrow().getPermissoesIndividuais().get("planos.gerar"));
+@@ -63 +63 @@
+-        mvc.perform(get("/api/usuarios").session(pessoa)).andExpect(status().isOk());
++        mvc.perform(get("/api/usuarios").session(pessoa)).andExpect(status().isForbidden());
+--- a/src/test/java/br/com/portalincluir/controller/IntegracaoUsuariosTest.java
++++ b/src/test/java/br/com/portalincluir/controller/IntegracaoUsuariosTest.java
+@@ -2 +1,0 @@
+-
+@@ -4 +3,3 @@
+-import com.fasterxml.jackson.databind.ObjectMapper;
++import br.com.portalincluir.config.RootInicialConfig;
++import br.com.portalincluir.config.CatalogoProfissional;
++import com.fasterxml.jackson.databind.*;
+@@ -9,0 +11 @@
++import org.springframework.mock.web.MockHttpSession;
+@@ -11 +13,4 @@
+-import java.util.Map;
++import org.springframework.security.crypto.password.PasswordEncoder;
++import org.springframework.boot.DefaultApplicationArguments;
++import java.time.LocalDateTime;
++import java.util.*;
+@@ -15,8 +20 @@
+-
+-@SpringBootTest(properties = {
+-    "spring.datasource.url=jdbc:h2:mem:integracao;DB_CLOSE_DELAY=-1;INIT=CREATE SCHEMA IF NOT EXISTS auditoria",
+-    "spring.datasource.driver-class-name=org.h2.Driver",
+-    "spring.datasource.username=sa", "spring.datasource.password=",
+-    "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
+-    "spring.jpa.hibernate.ddl-auto=create-drop", "spring.sql.init.mode=never"
+-})
++@SpringBootTest(properties={"spring.datasource.url=jdbc:h2:mem:stateful;DB_CLOSE_DELAY=-1;INIT=CREATE SCHEMA IF NOT EXISTS auditoria","spring.datasource.driver-class-name=org.h2.Driver","spring.datasource.username=sa","spring.datasource.password=","spring.jpa.database-platform=org.hibernate.dialect.H2Dialect","spring.jpa.hibernate.ddl-auto=create-drop","spring.sql.init.mode=never","spring.jpa.show-sql=false","logging.level.root=ERROR"})
+@@ -25,52 +23,46 @@
+-    @Autowired MockMvc mvc;
+-    @Autowired ObjectMapper json;
+-    @Autowired UsuarioRepository usuarios;
+-    @Autowired ProfessorRepository professores;
+-    @Autowired br.com.portalincluir.service.UsuarioService service;
+-
+-    @Test void cadastroLoginDashboardECorsComSessao() throws Exception {
+-        String body = json.writeValueAsString(Map.of("nome", "Coordenação Teste", "email", "coord@teste.com",
+-                "senha", "senha123", "perfil", "COORDENADOR", "matricula", "coord-1", "cargo", "Coordenação", "setor", "CLAI"));
+-        org.springframework.mock.web.MockHttpSession gestao = null;
+-        if (usuarios.count() > 0) {
+-            var r = new br.com.portalincluir.dto.request.CadastroUsuarioRequest();
+-            r.setNome("Gestor"); r.setEmail("gestor@teste.com"); r.setSenha("senha123"); r.setPerfil(br.com.portalincluir.enums.PerfilUsuario.COORDENADOR); r.setMatricula("gestor-1"); r.setCargo("Gestor"); r.setSetor("CLAI");
+-            Long id = service.cadastrar(r).id(); gestao = new org.springframework.mock.web.MockHttpSession(); gestao.setAttribute("usuarioAutenticadoId", id);
+-        }
+-        var cadastro = post("/api/auth/register");
+-        if (gestao != null) cadastro.session(gestao);
+-        var result = mvc.perform(cadastro.contentType(MediaType.APPLICATION_JSON).content(body))
+-                .andExpect(status().isCreated()).andExpect(jsonPath("perfil").value("COORDENADOR"))
+-                .andExpect(jsonPath("senha").doesNotExist()).andReturn();
+-        long perfilId = json.readTree(result.getResponse().getContentAsString()).get("perfilId").asLong();
+-        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+-                .content("{\"email\":\"COORD@TESTE.COM\",\"senha\":\"senha123\"}"))
+-                .andExpect(status().isOk()).andExpect(jsonPath("perfilId").value(perfilId));
+-        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+-                .content("{\"email\":\"coord@teste.com\",\"senha\":\"errada\"}"))
+-                .andExpect(status().isUnauthorized()).andExpect(jsonPath("message").exists());
+-        mvc.perform(get("/api/coordenadores/" + perfilId + "/dashboard").session((org.springframework.mock.web.MockHttpSession) result.getRequest().getSession(false)))
+-                .andExpect(status().isOk()).andExpect(jsonPath("planosAtivos").value(0))
+-                .andExpect(jsonPath("estudantesRecentes").isArray());
+-        mvc.perform(options("/api/auth/register").header("Origin", "http://localhost:5173")
+-                .header("Access-Control-Request-Method", "POST").header("Access-Control-Request-Headers", "content-type"))
+-                .andExpect(status().isOk()).andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
+-        mvc.perform(post("/api/auth/register").session((org.springframework.mock.web.MockHttpSession) result.getRequest().getSession(false)).contentType(MediaType.APPLICATION_JSON).content(body))
+-                .andExpect(status().isConflict());
+-    }
+-
+-    @Test void duplicidadeDePerfilNaoDeixaContaOuPerfilParcial() throws Exception {
+-        String body = json.writeValueAsString(Map.of("nome", "Professor", "email", "prof@teste.com",
+-                "senha", "senha123", "perfil", "PROFESSOR", "matricula", "prof-1", "disciplina", "História", "setor", "Ensino", "cursosAtuacao", java.util.List.of(br.com.portalincluir.config.CatalogoProfissional.CURSOS.get(0))));
+-        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isCreated());
+-        long totalUsuarios = usuarios.count(), totalProfessores = professores.count();
+-        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+-                .content(body.replace("prof@teste.com", "outro@teste.com"))).andExpect(status().isConflict());
+-        assertEquals(totalUsuarios, usuarios.count()); assertEquals(totalProfessores, professores.count());
+-        assertFalse(usuarios.existsByEmailIgnoreCase("outro@teste.com"));
+-    }
+-
+-    @Test void estudanteNaoPodeCriarConta() throws Exception {
+-        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+-                .content("{\"perfil\":\"ESTUDANTE\"}")).andExpect(status().isBadRequest());
+-    }
++ @Autowired MockMvc mvc; @Autowired ObjectMapper json; @Autowired UsuarioRepository usuarios; @Autowired SolicitacaoAcessoRepository pedidos; @Autowired PasswordEncoder encoder; @Autowired RootInicialConfig rootConfig;
++ private Map<String,Object> dados(String perfil) {
++   String unico=UUID.randomUUID().toString().substring(0,8);
++   var d=new HashMap<String,Object>(); d.put("nome","Pessoa Teste");d.put("email","teste-"+unico+"@example.invalid");d.put("senha","senha123");d.put("matricula",unico);d.put("perfil",perfil);d.put("setor","Ensino");d.put("cargo","Coordenacao");d.put("areaAtuacao","Pedagogia");d.put("cursosAtuacao",List.of(CatalogoProfissional.CURSOS.get(0))); return d;
++ }
++ private MockHttpSession login(String email,String senha) throws Exception { return (MockHttpSession)mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("email",email,"senha",senha)))).andExpect(status().isOk()).andReturn().getRequest().getSession(false); }
++ private long solicitar(Map<String,Object> d) throws Exception {
++   var r=mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(d))).andExpect(status().isCreated()).andExpect(jsonPath("status").value("PENDENTE")).andExpect(jsonPath("usuarioId").isEmpty()).andReturn();
++   assertNull(r.getRequest().getSession(false)); assertFalse(r.getResponse().getContentAsString().contains("senha"));
++   return json.readTree(r.getResponse().getContentAsString()).get("id").asLong();
++ }
++ private void decidir(long id,boolean aprovar,MockHttpSession sessao) throws Exception { mvc.perform(post("/api/solicitacoes-acesso/"+id+"/decisao").session(sessao).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("aprovar",aprovar)))).andExpect(status().isOk()); }
++ @Test void rootCriadoUmaVezETemAcessoCompleto() throws Exception {
++   var raiz=usuarios.findByRootTrue().orElseThrow(); var hash=raiz.getSenha();assertTrue(encoder.matches("0123456789",hash));
++   rootConfig.run(new DefaultApplicationArguments(new String[0])); assertEquals(hash,usuarios.findByRootTrue().orElseThrow().getSenha());assertEquals(1,usuarios.findAll().stream().filter(u->u.isRoot()).count());
++   var s=login("root","0123456789");mvc.perform(get("/api/auth/me").session(s)).andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store")).andExpect(jsonPath("root").value(true)).andExpect(jsonPath("permissoes").isArray());
++   mvc.perform(get("/api/solicitacoes-acesso").session(s)).andExpect(status().isOk());
++   mvc.perform(delete("/api/usuarios/"+raiz.getId()).session(s)).andExpect(status().isConflict());
++ }
++ @Test void cadastroPublicoSoLiberaLoginDepoisDaAprovacao() throws Exception {
++   var root=login("root","0123456789");var d=dados("PROFESSOR");long id=solicitar(d);
++   assertFalse(usuarios.existsByEmailIgnoreCase((String)d.get("email")));assertNotEquals("senha123",pedidos.findById(id).orElseThrow().getSenhaHash());
++   mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("email",d.get("email"),"senha","senha123")))).andExpect(status().isUnauthorized());
++   mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(d))).andExpect(status().isConflict());
++   var p=pedidos.findById(id).orElseThrow();p.setCriadaEm(LocalDateTime.now().minusHours(49));pedidos.saveAndFlush(p);
++   for(int i=0;i<2;i++) { var r=mvc.perform(get("/api/solicitacoes-acesso").session(root)).andExpect(status().isOk()).andReturn();JsonNode item=null;for(var n:json.readTree(r.getResponse().getContentAsString()))if(n.get("id").asLong()==id)item=n;assertNotNull(item);assertTrue(item.get("atrasada").asBoolean());assertEquals(2,item.get("diasPendente").asLong());assertFalse(item.toString().contains("senha")); }
++   decidir(id,true,root);assertNull(pedidos.findById(id).orElseThrow().getSenhaHash());
++   var s=login((String)d.get("email"),"senha123");mvc.perform(get("/api/auth/me").session(s)).andExpect(jsonPath("perfil").value("PROFESSOR"));
++   mvc.perform(get("/api/auth/me").session(root)).andExpect(jsonPath("root").value(true));
++   mvc.perform(post("/api/solicitacoes-acesso/"+id+"/decisao").session(root).contentType(MediaType.APPLICATION_JSON).content("{\"aprovar\":true}")).andExpect(status().isConflict());
++ }
++ @Test void coordenadorPrecisaDeAprovacaoDoRootParaAdministracao() throws Exception {
++   var root=login("root","0123456789");var d=dados("COORDENADOR");long id=solicitar(d);decidir(id,true,root);var s=login((String)d.get("email"),"senha123");
++   mvc.perform(get("/api/solicitacoes-acesso").session(s)).andExpect(status().isForbidden());mvc.perform(get("/api/usuarios").session(s)).andExpect(status().isForbidden());mvc.perform(get("/api/auditorias").session(s)).andExpect(status().isForbidden());
++   var r=mvc.perform(post("/api/solicitacoes-acesso/administracao").session(s)).andExpect(status().isOk()).andExpect(jsonPath("tipo").value("ADMINISTRACAO")).andReturn();long admin=json.readTree(r.getResponse().getContentAsString()).get("id").asLong();
++   mvc.perform(post("/api/solicitacoes-acesso/"+admin+"/decisao").session(s).contentType(MediaType.APPLICATION_JSON).content("{\"aprovar\":true}")).andExpect(status().isForbidden());
++   mvc.perform(post("/api/solicitacoes-acesso/administracao").session(s)).andExpect(status().isConflict());decidir(admin,true,root);
++   mvc.perform(get("/api/auth/me").session(s)).andExpect(jsonPath("root").value(false)).andExpect(jsonPath("administracaoAprovada").value(true));mvc.perform(get("/api/usuarios").session(s)).andExpect(status().isOk());
++   long rootId=usuarios.findByRootTrue().orElseThrow().getId();mvc.perform(patch("/api/usuarios/"+rootId+"/situacao").session(s).contentType(MediaType.APPLICATION_JSON).content("{\"ativo\":false}")).andExpect(status().isConflict());
++ }
++ @Test void recusaNaoCriaContaELoginFalhoNaoDestroiSessaoAtual() throws Exception {
++   var root=login("root","0123456789");var d=dados("COORDENADOR");long id=solicitar(d);decidir(id,false,root);assertFalse(usuarios.existsByEmailIgnoreCase((String)d.get("email")));
++   mvc.perform(post("/api/auth/login").session(root).contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"root\",\"senha\":\"errada\"}")).andExpect(status().isUnauthorized());assertFalse(root.isInvalid());mvc.perform(get("/api/auth/me").session(root)).andExpect(jsonPath("root").value(true));
++   String antigo=root.getId();var novo=mvc.perform(post("/api/auth/login").session(root).contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"root\",\"senha\":\"0123456789\"}")).andExpect(status().isOk()).andReturn();var s=(MockHttpSession)novo.getRequest().getSession(false);assertNotEquals(antigo,s.getId());assertTrue(root.isInvalid());
++   mvc.perform(post("/api/auth/logout").session(s)).andExpect(status().isNoContent());assertTrue(s.isInvalid());mvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized());mvc.perform(get("/api/solicitacoes-acesso")).andExpect(status().isUnauthorized());
++ }

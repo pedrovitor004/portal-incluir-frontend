@@ -29,6 +29,8 @@ const AuditoriasPage = lazy(() => import("../../pages/coordenador/auditorias/Aud
 
 const UsuariosPage = lazy(() => import("../../pages/coordenador/administracao/UsuariosPage"));
 const PermissoesPage = lazy(() => import("../../pages/coordenador/administracao/PermissoesPage"));
+const SolicitacoesAcessoPage = lazy(() => import("../../pages/coordenador/administracao/SolicitacoesAcessoPage"));
+const SolicitarAdministracaoPage = lazy(() => import("../../pages/coordenador/administracao/SolicitarAdministracaoPage"));
 const GestaoAcompanhamentoPage = lazy(() => import("../../pages/coordenador/acompanhamento/GestaoAcompanhamentoPage"));
 const ResponsaveisPage = lazy(() => import("../../pages/coordenador/acompanhamento/ResponsaveisPage"));
 
@@ -91,6 +93,8 @@ export default function AppRoutes() {
         ] : []),
       ])}
 
+      {(["COORDENADOR", "ADMINISTRADOR"] as const).map(perfil => <Route key={perfil + "-solicitar-administracao"} path={accessProfiles[perfil].basePath + "/administracao/solicitar"} element={<PerfilRoute perfil={perfil}><Suspense fallback={<LoadingState />}><SolicitarAdministracaoPage /></Suspense></PerfilRoute>} />)}
+      {(["COORDENADOR", "ADMINISTRADOR"] as const).map(perfil => <Route key={perfil + "-solicitacoes"} path={accessProfiles[perfil].basePath + "/administracao/solicitacoes"} element={<PerfilRoute perfil={perfil} permission="usuarios.gerenciar"><Suspense fallback={<LoadingState />}><SolicitacoesAcessoPage /></Suspense></PerfilRoute>} />)}
       {/* Páginas públicas */}
       <Route path={routes.home} element={<HomePage />} />
       <Route path={routes.login} element={<LoginPage />} />

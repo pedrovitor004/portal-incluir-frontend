@@ -120,13 +120,13 @@ export default function LoginPage() {
                 <div className="flex flex-col gap-5">
                   <label className="flex flex-col gap-2">
                     <span className="text-sm font-semibold text-primary">
-                      E-mail
+                      E-mail ou usuário
                     </span>
                     <input
-                      type="email"
+                      type="text"
                       required name="email"
-                      autoComplete="email"
-                      placeholder="nome@ifpb.edu.br"
+                      autoComplete="username"
+                      placeholder="E-mail ou root"
                       className="h-12 w-full rounded-lg border border-emerald-300 bg-white px-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition hover:border-emerald-400 focus:border-primary focus:ring-4 focus:ring-emerald-100"
                     />
                   </label>

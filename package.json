@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:acesso": "node scripts/test-politica-acesso.mjs",
     "preview": "vite preview",
     "test:relatorios": "node scripts/test-relatorios.mjs",
     "test:auth": "node scripts/test-auth-session.mjs"
