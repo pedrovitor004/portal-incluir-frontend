@@ -9,7 +9,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:relatorios": "node scripts/test-relatorios.mjs"
+    "test:relatorios": "node scripts/test-relatorios.mjs",
+    "test:auth": "node scripts/test-auth-session.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
