@@ -1,0 +1,421 @@
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/config/EscopoEstudanteAdvice.java
+@@ -0,0 +1,35 @@
++package br.com.portalincluir.config;
++import br.com.portalincluir.service.EscopoEstudanteService;
++import com.fasterxml.jackson.databind.*;
++import com.fasterxml.jackson.databind.node.ArrayNode;
++import jakarta.servlet.http.HttpServletRequest;
++import lombok.RequiredArgsConstructor;
++import org.springframework.core.*;
++import org.springframework.core.annotation.Order;
++import org.springframework.http.*;
++import org.springframework.http.converter.HttpMessageConverter;
++import org.springframework.http.server.*;
++import org.springframework.web.bind.annotation.RestControllerAdvice;
++import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
++import java.util.Set;
++
++@RestControllerAdvice @RequiredArgsConstructor @Order(Ordered.HIGHEST_PRECEDENCE)
++public class EscopoEstudanteAdvice implements ResponseBodyAdvice<Object> {
++    private final EscopoEstudanteService escopo;
++    private final ObjectMapper mapper;
++    private final HttpServletRequest request;
++    @Override public boolean supports(MethodParameter method, Class<? extends HttpMessageConverter<?>> converter) { return org.springframework.http.converter.json.MappingJackson2HttpMessageConverter.class.isAssignableFrom(converter); }
++    @Override public Object beforeBodyWrite(Object body, MethodParameter method, MediaType type, Class<? extends HttpMessageConverter<?>> converter, ServerHttpRequest req, ServerHttpResponse response) {
++        String path = request.getRequestURI().substring(request.getContextPath().length());
++        if (body == null || !request.getMethod().equals("GET") || path.contains("/profissionais") || !path.matches("/api/(estudantes|planos-acao|planos-educacionais|adaptacoes-pedagogicas)(/.*)?")) return body;
++        if (response instanceof ServletServerHttpResponse servlet && servlet.getServletResponse().getStatus() >= 400) return body;
++        var permitidos = escopo.idsPermitidos();
++        if (permitidos.isEmpty()) return body;
++        JsonNode json = mapper.valueToTree(body);
++        if (!json.isArray()) return body;
++        Set<Long> ids = permitidos.get(); ArrayNode resultado = mapper.createArrayNode();
++        String campo = path.startsWith("/api/estudantes") ? "id" : "estudanteId";
++        json.forEach(item -> { JsonNode id = item.get(campo); if (id != null && id.isIntegralNumber() && ids.contains(id.longValue())) resultado.add(item); });
++        return resultado;
++    }
++}
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/config/EscopoEstudanteRequestAdvice.java
+@@ -0,0 +1,21 @@
++package br.com.portalincluir.config;
++import br.com.portalincluir.service.EscopoEstudanteService;
++import lombok.RequiredArgsConstructor;
++import org.springframework.beans.BeanWrapperImpl;
++import org.springframework.core.MethodParameter;
++import org.springframework.http.HttpInputMessage;
++import org.springframework.http.converter.HttpMessageConverter;
++import org.springframework.web.bind.annotation.RestControllerAdvice;
++import org.springframework.web.servlet.mvc.method.annotation.RequestBodyAdviceAdapter;
++import java.lang.reflect.Type;
++
++@RestControllerAdvice @RequiredArgsConstructor
++public class EscopoEstudanteRequestAdvice extends RequestBodyAdviceAdapter {
++    private final EscopoEstudanteService escopo;
++    @Override public boolean supports(MethodParameter parameter, Type targetType, Class<? extends HttpMessageConverter<?>> converter) { return parameter.getParameterType().getPackageName().equals("br.com.portalincluir.dto.request"); }
++    @Override public Object afterBodyRead(Object body, HttpInputMessage input, MethodParameter parameter, Type targetType, Class<? extends HttpMessageConverter<?>> converter) {
++        var propriedades = new BeanWrapperImpl(body);
++        if (propriedades.isReadableProperty("estudanteId")) escopo.exigir((Long)propriedades.getPropertyValue("estudanteId"));
++        return body;
++    }
++}
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/config/EscopoEstudanteWebConfig.java
+@@ -0,0 +1,45 @@
++package br.com.portalincluir.config;
++import br.com.portalincluir.service.EscopoEstudanteService;
++import br.com.portalincluir.repository.*;
++import jakarta.servlet.http.*;
++import lombok.RequiredArgsConstructor;
++import org.springframework.context.annotation.Configuration;
++import org.springframework.web.servlet.config.annotation.*;
++import org.springframework.web.servlet.HandlerInterceptor;
++import org.springframework.http.HttpStatus;
++import org.springframework.web.server.ResponseStatusException;
++import java.util.regex.Pattern;
++
++@Configuration @RequiredArgsConstructor
++public class EscopoEstudanteWebConfig implements WebMvcConfigurer {
++    private final EscopoEstudanteService escopo;
++    private final PlanoAcaoRepository planos;
++    private final PlanoEducacionalRepository peis;
++    private final AdaptacaoPedagogicaRepository adaptacoes;
++    @Override public void addInterceptors(InterceptorRegistry registry) {
++        registry.addInterceptor(new HandlerInterceptor() {
++            @Override public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
++                if (request.getMethod().equals("OPTIONS")) return true;
++                String path = request.getRequestURI().substring(request.getContextPath().length());
++                if (path.matches("/api/coordenadores/[0-9]+/dashboard")) { escopo.exigirGestao(); return true; }
++                if (path.equals("/api/estudantes") && request.getMethod().equals("POST")) { escopo.exigirGestao(); return true; }
++                var estudante = Pattern.compile("^/api/estudantes/([0-9]+)(?:/.*)?$").matcher(path);
++                if (estudante.matches()) { escopo.exigir(Long.valueOf(estudante.group(1))); return true; }
++                var porEstudante = Pattern.compile("^/api/(?:planos-acao|planos-educacionais|adaptacoes-pedagogicas)/estudante/([0-9]+)(?:/.*)?$").matcher(path);
++                if (porEstudante.matches()) { escopo.exigir(Long.valueOf(porEstudante.group(1))); return true; }
++                var documento = Pattern.compile("^/api/(planos-acao|planos-educacionais|adaptacoes-pedagogicas)/([0-9]+)(?:/.*)?$").matcher(path);
++                if (documento.matches()) {
++                    Long id = Long.valueOf(documento.group(2));
++                    Long estudanteId = switch(documento.group(1)) {
++                        case "planos-acao" -> planos.findById(id).map(p -> p.getEstudante().getId()).orElseThrow(EscopoEstudanteWebConfig::ausente);
++                        case "planos-educacionais" -> peis.findById(id).map(p -> p.getEstudante().getId()).orElseThrow(EscopoEstudanteWebConfig::ausente);
++                        default -> adaptacoes.findById(id).map(p -> p.getEstudante().getId()).orElseThrow(EscopoEstudanteWebConfig::ausente);
++                    };
++                    escopo.exigir(estudanteId);
++                }
++                return true;
++            }
++        }).addPathPatterns("/api/**").order(20);
++    }
++    private static ResponseStatusException ausente() { return new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro não encontrado."); }
++}
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/controller/VinculoEstudanteController.java
+@@ -0,0 +1,20 @@
++package br.com.portalincluir.controller;
++import br.com.portalincluir.service.*;
++import jakarta.servlet.http.HttpServletRequest;
++import jakarta.validation.Valid;
++import jakarta.validation.constraints.*;
++import lombok.RequiredArgsConstructor;
++import org.springframework.web.bind.annotation.*;
++import java.util.*;
++
++@RestController @RequiredArgsConstructor @RequestMapping("/api/estudantes/{estudanteId}/profissionais")
++public class VinculoEstudanteController {
++    private final PermissaoService acesso;
++    private final VinculoEstudanteService service;
++    public record Associacao(@NotNull Long profissionalId, @NotBlank @Size(max=1000) String motivo) {}
++    public record Encerramento(@NotNull Long versao, @NotBlank @Size(max=1000) String motivo) {}
++    @GetMapping public List<VinculoEstudanteService.Vinculo> listar(@PathVariable Long estudanteId, HttpServletRequest http) { acesso.exigir(http, "estudantes.consultar"); return service.listar(estudanteId); }
++    @GetMapping("/disponiveis") public List<VinculoEstudanteService.Profissional> candidatos(@PathVariable Long estudanteId, HttpServletRequest http) { acesso.exigir(http, "estudantes.vincular"); return service.candidatos(estudanteId); }
++    @PostMapping public VinculoEstudanteService.Vinculo associar(@PathVariable Long estudanteId, @Valid @RequestBody Associacao r, HttpServletRequest http) { var autor = acesso.exigir(http, "estudantes.vincular"); return service.associar(estudanteId, r.profissionalId(), r.motivo(), autor.getId()); }
++    @PostMapping("/{id}/encerrar") public VinculoEstudanteService.Vinculo encerrar(@PathVariable Long estudanteId, @PathVariable Long id, @Valid @RequestBody Encerramento r, HttpServletRequest http) { var autor = acesso.exigir(http, "estudantes.vincular"); return service.encerrar(estudanteId, id, r.versao(), r.motivo(), autor.getId()); }
++}
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/model/VinculoEstudanteProfissional.java
+@@ -0,0 +1,24 @@
++package br.com.portalincluir.model;
++import jakarta.persistence.*;
++import lombok.Getter;
++import lombok.Setter;
++import java.time.LocalDateTime;
++
++@Entity @org.hibernate.envers.Audited @Getter @Setter
++@Table(name="vinculos_estudante_profissional", uniqueConstraints={@UniqueConstraint(columnNames={"estudante_id", "professor_id"}), @UniqueConstraint(columnNames={"estudante_id", "membro_id"})})
++public class VinculoEstudanteProfissional {
++    @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id;
++    @Version private long versao;
++    @ManyToOne(optional=false) @JoinColumn(name="estudante_id", nullable=false) private Estudante estudante;
++    @ManyToOne @JoinColumn(name="professor_id") private Professor professor;
++    @ManyToOne @JoinColumn(name="membro_id") private EquipeMultidisciplinar membro;
++    @Column(nullable=false) private boolean ativo = true;
++    @Column(nullable=false, length=1000) private String motivo;
++    @Column(length=1000) private String motivoEncerramento;
++    @Column(nullable=false) private LocalDateTime dataInicio;
++    private LocalDateTime dataEncerramento;
++    @Column(nullable=false) private Long responsavelUsuarioId;
++    @PrePersist @PreUpdate void validar() {
++        if ((professor == null) == (membro == null)) throw new IllegalStateException("Selecione exatamente um profissional para o vínculo.");
++    }
++}
+--- a/src/main/java/br/com/portalincluir/repository/FluxoEstudanteRepository.java
++++ b/src/main/java/br/com/portalincluir/repository/FluxoEstudanteRepository.java
+@@ -1,4 +1,7 @@
+-package br.com.portalincluir.repository;
+-import br.com.portalincluir.model.FluxoEstudante;
+-import org.springframework.data.jpa.repository.JpaRepository;
+-public interface FluxoEstudanteRepository extends JpaRepository<FluxoEstudante, Long> {}
++package br.com.portalincluir.repository;
++import br.com.portalincluir.model.FluxoEstudante;
++import org.springframework.data.jpa.repository.JpaRepository;
++public interface FluxoEstudanteRepository extends JpaRepository<FluxoEstudante, Long> {
++ @org.springframework.data.jpa.repository.Query("select f.estudante.id from FluxoEstudante f where f.estudante.ativo=true and (f.anamneseResponsavel.id=:id or f.planoResponsavel.id=:id or f.peiResponsavel.id=:id)")
++ java.util.Set<Long> estudantesAtribuidos(@org.springframework.data.repository.query.Param("id") Long id);
++}
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/repository/VinculoEstudanteProfissionalRepository.java
+@@ -0,0 +1,17 @@
++package br.com.portalincluir.repository;
++import br.com.portalincluir.model.VinculoEstudanteProfissional;
++import org.springframework.data.jpa.repository.*;
++import org.springframework.data.repository.query.Param;
++import java.util.*;
++public interface VinculoEstudanteProfissionalRepository extends JpaRepository<VinculoEstudanteProfissional,Long> {
++    List<VinculoEstudanteProfissional> findByEstudanteIdOrderByAtivoDescDataInicioDesc(Long estudanteId);
++    Optional<VinculoEstudanteProfissional> findByEstudanteIdAndProfessorId(Long estudanteId, Long professorId);
++    Optional<VinculoEstudanteProfissional> findByEstudanteIdAndMembroId(Long estudanteId, Long membroId);
++    @Query("select v.estudante.id from VinculoEstudanteProfissional v where v.ativo=true and v.estudante.ativo=true and v.professor.id=:id")
++    Set<Long> estudantesDoProfessor(@Param("id") Long id);
++    @Query("select v.estudante.id from VinculoEstudanteProfissional v where v.ativo=true and v.estudante.ativo=true and v.membro.id=:id")
++    Set<Long> estudantesDoMembro(@Param("id") Long id);
++    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
++    @Query("select v from VinculoEstudanteProfissional v where v.id=:id")
++    Optional<VinculoEstudanteProfissional> buscarComBloqueio(@Param("id") Long id);
++}
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/service/EscopoEstudanteService.java
+@@ -0,0 +1,35 @@
++package br.com.portalincluir.service;
++import br.com.portalincluir.model.Usuario;
++import br.com.portalincluir.repository.VinculoEstudanteProfissionalRepository;
++import jakarta.servlet.http.HttpServletRequest;
++import lombok.RequiredArgsConstructor;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++import org.springframework.http.HttpStatus;
++import org.springframework.web.server.ResponseStatusException;
++import java.util.*;
++
++@Service @RequiredArgsConstructor
++public class EscopoEstudanteService {
++    private final PermissaoService acesso;
++    private final VinculoEstudanteProfissionalRepository vinculos;
++    private final HttpServletRequest request;
++    private final br.com.portalincluir.repository.FluxoEstudanteRepository fluxos;
++    public static boolean gestao(Usuario usuario) { return usuario.getPerfil() == br.com.portalincluir.enums.PerfilUsuario.COORDENADOR || usuario.getPerfil() == br.com.portalincluir.enums.PerfilUsuario.ADMINISTRADOR; }
++    @Transactional(readOnly=true) public Optional<Set<Long>> idsPermitidos() {
++        Usuario usuario = acesso.autenticado(request);
++        if (gestao(usuario)) return Optional.empty();
++        Set<Long> ids = switch(usuario.getPerfil()) {
++            case PROFESSOR -> vinculos.estudantesDoProfessor(usuario.getProfessor().getId());
++            case EQUIPE_MULTIDISCIPLINAR -> vinculos.estudantesDoMembro(usuario.getEquipeMultidisciplinar().getId());
++            default -> Set.of();
++        };
++        var permitidos = new HashSet<>(ids); permitidos.addAll(fluxos.estudantesAtribuidos(usuario.getId())); return Optional.of(permitidos);
++    }
++    public void exigir(Long estudanteId) {
++        if (estudanteId == null || idsPermitidos().map(ids -> !ids.contains(estudanteId)).orElse(false)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Este estudante não está vinculado ao seu acompanhamento.");
++    }
++    public void exigirGestao() {
++        if (!gestao(acesso.autenticado(request))) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Esta ação é realizada pela coordenação.");
++    }
++}
+--- a/src/main/java/br/com/portalincluir/service/RetencaoEstudanteService.java
++++ b/src/main/java/br/com/portalincluir/service/RetencaoEstudanteService.java
+@@ -30,4 +30,6 @@
+-        executar("delete from auditoria.fluxos_estudantes_aud where estudante_id = :id", id);
+-        executar("delete from auditoria.notificacoes_fluxo_aud where estudante_id = :id", id);
+-        executar("delete from notificacoes_fluxo where estudante_id = :id", id);
+-        executar("delete from fluxos_estudantes where estudante_id = :id", id);
++        executar("delete from auditoria.fluxos_estudantes_aud where estudante_id = :id", id);
++        executar("delete from auditoria.notificacoes_fluxo_aud where estudante_id = :id", id);
++        executar("delete from notificacoes_fluxo where estudante_id = :id", id);
++        executar("delete from auditoria.vinculos_estudante_profissional_aud where estudante_id = :id", id);
++        executar("delete from vinculos_estudante_profissional where estudante_id = :id", id);
++        executar("delete from fluxos_estudantes where estudante_id = :id", id);
+--- /dev/null
++++ b/src/main/java/br/com/portalincluir/service/VinculoEstudanteService.java
+@@ -0,0 +1,77 @@
++package br.com.portalincluir.service;
++import br.com.portalincluir.model.*;
++import br.com.portalincluir.repository.*;
++import br.com.portalincluir.config.CatalogoProfissional;
++import br.com.portalincluir.enums.PerfilUsuario;
++import lombok.RequiredArgsConstructor;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++import org.springframework.http.HttpStatus;
++import org.springframework.web.server.ResponseStatusException;
++import java.util.*;
++import java.time.LocalDateTime;
++
++@Service @RequiredArgsConstructor @Transactional
++public class VinculoEstudanteService {
++    private final VinculoEstudanteProfissionalRepository vinculos;
++    private final UsuarioRepository usuarios;
++    private final PoliticaHistoricoService politica;
++    private final EstudanteRepository estudantes;
++    private final EscopoEstudanteService escopo;
++    public record Profissional(Long usuarioId, Long perfilId, String nome, PerfilUsuario perfil, String areaAtuacao, String disciplina, String setor, Set<String> cursosAtuacao, boolean mesmoCurso, boolean ativo, boolean vinculado) {}
++    public record Vinculo(Long id, long versao, Profissional profissional, boolean ativo, String motivo, String motivoEncerramento, LocalDateTime dataInicio, LocalDateTime dataEncerramento) {}
++    private Profissional profissional(Usuario u, String curso, boolean vinculado) {
++        boolean professor = u.getPerfil() == PerfilUsuario.PROFESSOR;
++        var p = new org.springframework.beans.BeanWrapperImpl(GestaoUsuarioService.profissional(u));
++        Set<String> cursos = professor ? new TreeSet<>(u.getProfessor().getCursosAtuacao()) : Set.of();
++        return new Profissional(u.getId(), (Long)p.getPropertyValue("id"), (String)p.getPropertyValue("nome"), u.getPerfil(), professor ? "Docência" : u.getEquipeMultidisciplinar().getAreaAtuacao(), professor ? u.getProfessor().getDisciplina() : null, (String)p.getPropertyValue("setor"), cursos, professor && CatalogoProfissional.atuaNoCurso(cursos, curso), PermissaoService.ativo(u), vinculado);
++    }
++    private boolean corresponde(Usuario u, VinculoEstudanteProfissional v) {
++        return u.getPerfil() == PerfilUsuario.PROFESSOR && v.getProfessor() != null && u.getProfessor().getId().equals(v.getProfessor().getId()) || u.getPerfil() == PerfilUsuario.EQUIPE_MULTIDISCIPLINAR && v.getMembro() != null && u.getEquipeMultidisciplinar().getId().equals(v.getMembro().getId());
++    }
++    private Vinculo resposta(VinculoEstudanteProfissional v, List<Usuario> contas) {
++        Profissional p = contas.stream().filter(u -> corresponde(u, v)).findFirst().map(u -> profissional(u, v.getEstudante().getCurso(), v.isAtivo())).orElseGet(() -> {
++            boolean professor = v.getProfessor() != null;
++            return new Profissional(null, professor ? v.getProfessor().getId() : v.getMembro().getId(), professor ? v.getProfessor().getNome() : v.getMembro().getNome(), professor ? PerfilUsuario.PROFESSOR : PerfilUsuario.EQUIPE_MULTIDISCIPLINAR, professor ? "Docência" : v.getMembro().getAreaAtuacao(), professor ? v.getProfessor().getDisciplina() : null, professor ? v.getProfessor().getSetor() : v.getMembro().getSetor(), professor ? new TreeSet<>(v.getProfessor().getCursosAtuacao()) : Set.of(), false, false, v.isAtivo());
++        });
++        return new Vinculo(v.getId(), v.getVersao(), p, v.isAtivo(), v.getMotivo(), v.getMotivoEncerramento(), v.getDataInicio(), v.getDataEncerramento());
++    }
++    @Transactional(readOnly=true) public List<Vinculo> listar(Long estudanteId) {
++        escopo.exigir(estudanteId);
++        var contas = usuarios.findAll();
++        return vinculos.findByEstudanteIdOrderByAtivoDescDataInicioDesc(estudanteId).stream().map(v -> resposta(v, contas)).toList();
++    }
++    @Transactional(readOnly=true) public List<Profissional> candidatos(Long estudanteId) {
++        escopo.exigirGestao();
++        var estudante = estudantes.findById(estudanteId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
++        politica.exigirDisponivel(estudante);
++        var atuais = vinculos.findByEstudanteIdOrderByAtivoDescDataInicioDesc(estudanteId);
++        return usuarios.findAll().stream().filter(u -> u.getPerfil() == PerfilUsuario.PROFESSOR || u.getPerfil() == PerfilUsuario.EQUIPE_MULTIDISCIPLINAR).filter(PermissaoService::ativo)
++            .map(u -> profissional(u, estudante.getCurso(), atuais.stream().anyMatch(v -> v.isAtivo() && corresponde(u, v))))
++            .sorted(Comparator.comparing(Profissional::mesmoCurso).reversed().thenComparing(Profissional::nome, String.CASE_INSENSITIVE_ORDER)).toList();
++    }
++    public Vinculo associar(Long estudanteId, Long profissionalId, String motivo, Long autor) {
++        escopo.exigirGestao();
++        Estudante estudante = politica.bloquear(estudanteId); politica.exigirEditavel(estudante);
++        if (!estudante.isAtivo()) throw new ResponseStatusException(HttpStatus.CONFLICT, "Ative o estudante antes de associar profissionais.");
++        Usuario profissional = usuarios.findById(profissionalId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profissional não encontrado."));
++        if (!PermissaoService.ativo(profissional)) throw new ResponseStatusException(HttpStatus.CONFLICT, "Este profissional está inativo.");
++        Optional<VinculoEstudanteProfissional> anterior;
++        if (profissional.getPerfil() == PerfilUsuario.PROFESSOR) anterior = vinculos.findByEstudanteIdAndProfessorId(estudanteId, profissional.getProfessor().getId());
++        else if (profissional.getPerfil() == PerfilUsuario.EQUIPE_MULTIDISCIPLINAR) anterior = vinculos.findByEstudanteIdAndMembroId(estudanteId, profissional.getEquipeMultidisciplinar().getId());
++        else throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selecione um professor ou integrante da equipe multidisciplinar.");
++        if (anterior.filter(VinculoEstudanteProfissional::isAtivo).isPresent()) throw new ResponseStatusException(HttpStatus.CONFLICT, "Este profissional já está associado ao estudante.");
++        var v = anterior.orElseGet(VinculoEstudanteProfissional::new);
++        v.setEstudante(estudante); v.setProfessor(profissional.getProfessor()); v.setMembro(profissional.getEquipeMultidisciplinar()); v.setAtivo(true); v.setMotivo(motivo.strip()); v.setDataInicio(politica.agora()); v.setDataEncerramento(null); v.setMotivoEncerramento(null); v.setResponsavelUsuarioId(autor);
++        return resposta(vinculos.saveAndFlush(v), List.of(profissional));
++    }
++    public Vinculo encerrar(Long estudanteId, Long id, long versao, String motivo, Long autor) {
++        escopo.exigirGestao();
++        var estudante = politica.bloquear(estudanteId); politica.exigirEditavel(estudante);
++        var v = vinculos.buscarComBloqueio(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vínculo não encontrado."));
++        if (!v.getEstudante().getId().equals(estudanteId)) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Vínculo não encontrado para este estudante.");
++        if (v.getVersao() != versao || !v.isAtivo()) throw new ResponseStatusException(HttpStatus.CONFLICT, "Este vínculo foi alterado. Atualize os dados antes de continuar.");
++        v.setAtivo(false); v.setDataEncerramento(politica.agora()); v.setMotivoEncerramento(motivo.strip()); v.setResponsavelUsuarioId(autor);
++        return resposta(vinculos.saveAndFlush(v), usuarios.findAll());
++    }
++}
+--- /dev/null
++++ b/src/test/java/br/com/portalincluir/controller/VinculosEstudanteTest.java
+@@ -0,0 +1,93 @@
++package br.com.portalincluir.controller;
++import br.com.portalincluir.config.CatalogoProfissional;
++import br.com.portalincluir.dto.request.CadastroUsuarioRequest;
++import br.com.portalincluir.enums.PerfilUsuario;
++import br.com.portalincluir.model.*;
++import br.com.portalincluir.repository.*;
++import br.com.portalincluir.service.UsuarioService;
++import com.fasterxml.jackson.databind.*;
++import org.junit.jupiter.api.Test;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
++import org.springframework.boot.test.context.SpringBootTest;
++import org.springframework.mock.web.MockHttpSession;
++import org.springframework.test.web.servlet.MockMvc;
++import org.springframework.http.MediaType;
++import java.time.LocalDate;
++import java.util.*;
++import static org.junit.jupiter.api.Assertions.*;
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
++
++@SpringBootTest(properties={"spring.datasource.url=jdbc:h2:mem:vinculos;DB_CLOSE_DELAY=-1;INIT=CREATE SCHEMA IF NOT EXISTS auditoria", "spring.datasource.driver-class-name=org.h2.Driver", "spring.datasource.username=sa", "spring.datasource.password=", "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect", "spring.jpa.hibernate.ddl-auto=create-drop", "spring.sql.init.mode=never"})
++@AutoConfigureMockMvc
++class VinculosEstudanteTest {
++    @Autowired MockMvc mvc;
++    @Autowired ObjectMapper json;
++    @Autowired UsuarioService cadastro;
++    @Autowired UsuarioRepository usuarios;
++    @Autowired EstudanteRepository estudantes;
++    @Autowired PlanoAcaoRepository planos;
++    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
++    private Long conta(String email, PerfilUsuario perfil) {
++        var r = new CadastroUsuarioRequest(); r.setNome("Profissional Teste"); r.setEmail(email); r.setSenha("senha123"); r.setPerfil(perfil); r.setMatricula(email); r.setSetor("CLAI"); r.setCargo("Profissional"); r.setAreaAtuacao("Psicologia"); r.setCursosAtuacao(Set.of(CatalogoProfissional.CURSOS.get(0)));
++        return cadastro.cadastrar(r).id();
++    }
++    private MockHttpSession sessao(Long id) { var s = new MockHttpSession(); s.setAttribute("usuarioAutenticadoId", id); return s; }
++    private Estudante estudante(String matricula) { var e = new Estudante(); e.setNome(matricula); e.setMatricula(matricula); e.setCurso(CatalogoProfissional.CURSOS.get(0)); e.setPeriodoIngresso("2026.1"); e.setDataNascimento(LocalDate.of(2000,1,1)); return estudantes.saveAndFlush(e); }
++    private JsonNode vincular(MockHttpSession gestor, Long estudante, Long profissional) throws Exception {
++        var resposta = mvc.perform(post("/api/estudantes/"+estudante+"/profissionais").session(gestor).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("profissionalId", profissional, "motivo", "Acompanhamento educacional registrado pela coordenacao")))) .andExpect(status().isOk()).andReturn();
++        return json.readTree(resposta.getResponse().getContentAsString());
++    }
++    @Test void cursoNaoConcedeAcessoEOVinculoControlaListasEnderecosDiretosEEncerramento() throws Exception {
++        Long coord = conta("coord@vinculos.test", PerfilUsuario.COORDENADOR), prof = conta("prof@vinculos.test", PerfilUsuario.PROFESSOR), equipe = conta("equipe@vinculos.test", PerfilUsuario.EQUIPE_MULTIDISCIPLINAR);
++        var gestor = sessao(coord); var docente = sessao(prof); var membro = sessao(equipe);
++        Estudante a = estudante("Aluno A"), b = estudante("Aluno B");
++        mvc.perform(get("/api/estudantes").session(docente)).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
++        mvc.perform(get("/api/estudantes/"+a.getId()).session(docente)).andExpect(status().isForbidden());
++        mvc.perform(get("/api/estudantes/"+a.getId()+"/profissionais/disponiveis").session(docente)).andExpect(status().isForbidden());
++        JsonNode vinculo = vincular(gestor, a.getId(), prof); vincular(gestor, b.getId(), equipe);
++        mvc.perform(get("/api/estudantes").session(docente)).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].id").value(a.getId()));
++        mvc.perform(get("/api/estudantes").session(membro)).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].id").value(b.getId()));
++        mvc.perform(get("/api/estudantes/"+b.getId()).session(docente)).andExpect(status().isForbidden());
++        mvc.perform(get("/api/estudantes/buscar").param("nome", "Aluno B").session(docente)).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
++        mvc.perform(get("/api/estudantes/"+a.getId()+"/profissionais").session(docente)).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
++        var responsavel = usuarios.findById(coord).orElseThrow().getCoordenador();
++        var pa = new PlanoAcao(); pa.setEstudante(a); pa.setCoordenadorResponsavel(responsavel); pa.setPeriodoLetivo("2026.1"); planos.saveAndFlush(pa);
++        var pb = new PlanoAcao(); pb.setEstudante(b); pb.setCoordenadorResponsavel(responsavel); pb.setPeriodoLetivo("2026.1"); planos.saveAndFlush(pb);
++        mvc.perform(get("/api/planos-acao").session(docente)).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].estudanteId").value(a.getId()));
++        mvc.perform(get("/api/planos-acao/"+pb.getId()).session(docente)).andExpect(status().isForbidden());
++        mvc.perform(post("/api/adaptacoes-pedagogicas").session(docente).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("estudanteId", b.getId())))).andExpect(status().isForbidden());
++        mvc.perform(post("/api/estudantes/"+a.getId()+"/profissionais").session(gestor).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("profissionalId", prof, "motivo", "Duplicado")))).andExpect(status().isConflict());
++        mvc.perform(post("/api/estudantes/"+a.getId()+"/inativar").session(gestor)).andExpect(status().isOk());
++        mvc.perform(get("/api/estudantes").session(docente)).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
++        mvc.perform(post("/api/estudantes/"+a.getId()+"/ativar").session(gestor)).andExpect(status().isOk());
++        String encerramento = json.writeValueAsString(Map.of("versao", vinculo.get("versao").asLong(), "motivo", "Encerramento do acompanhamento"));
++        mvc.perform(post("/api/estudantes/"+a.getId()+"/profissionais/"+vinculo.get("id").asLong()+"/encerrar").session(gestor).contentType(MediaType.APPLICATION_JSON).content(encerramento)).andExpect(status().isOk());
++        mvc.perform(get("/api/estudantes/"+a.getId()).session(docente)).andExpect(status().isForbidden());
++        mvc.perform(get("/api/planos-acao").session(docente)).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
++        mvc.perform(post("/api/estudantes/"+a.getId()+"/profissionais/"+vinculo.get("id").asLong()+"/encerrar").session(gestor).contentType(MediaType.APPLICATION_JSON).content(encerramento)).andExpect(status().isConflict());
++        assertEquals(vinculo.get("id").asLong(), vincular(gestor, a.getId(), prof).get("id").asLong(), "Reativar deve preservar a identidade e as revisoes do vinculo");
++        mvc.perform(get("/api/estudantes/"+a.getId()).session(docente)).andExpect(status().isOk());
++        assertTrue(jdbc.queryForObject("select count(*) from auditoria.vinculos_estudante_profissional_aud where id=?", Long.class, vinculo.get("id").asLong()) >= 3);
++    }
++    @Test void baseComumCorrespondeSomenteAoEnsinoMedio() {
++        var atuacoes = CatalogoProfissional.cursos(Set.of(CatalogoProfissional.BNCC));
++        for (String curso : CatalogoProfissional.CURSOS.subList(0, 3)) assertTrue(CatalogoProfissional.atuaNoCurso(atuacoes, curso));
++        for (String curso : CatalogoProfissional.CURSOS.subList(3, 5)) assertFalse(CatalogoProfissional.atuaNoCurso(atuacoes, curso));
++        assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> CatalogoProfissional.cursoEstudante(CatalogoProfissional.BNCC, null));
++    }
++    @Test void cadastroSemDisciplinaExigeCursoValidoEAreaPadronizada() throws Exception {
++        var body = new HashMap<String,Object>(); body.put("nome", "Professor sem disciplina"); body.put("email", "opcional@vinculos.test"); body.put("senha", "senha123"); body.put("perfil", "PROFESSOR"); body.put("matricula", "opcional-prof"); body.put("setor", "Ensino"); body.put("cursosAtuacao", List.of(CatalogoProfissional.CURSOS.get(3)));
++        var resposta = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body))).andExpect(status().isCreated()).andReturn();
++        Long id = json.readTree(resposta.getResponse().getContentAsString()).get("id").asLong();
++        mvc.perform(post("/api/solicitacoes-acesso/"+id+"/decisao").session(sessao(usuarios.findByRootTrue().orElseThrow().getId())).contentType(MediaType.APPLICATION_JSON).content("{\"aprovar\":true}")).andExpect(status().isOk());
++        var p = usuarios.findByEmailIgnoreCase("opcional@vinculos.test").orElseThrow().getProfessor(); assertEquals("", p.getDisciplina()); assertEquals(Set.of(CatalogoProfissional.CURSOS.get(3)), p.getCursosAtuacao());
++        body.put("email", "curso-invalido@vinculos.test"); body.put("matricula", "curso-invalido"); body.put("cursosAtuacao", List.of("Curso inexistente"));
++        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body))).andExpect(status().isBadRequest());
++        assertFalse(usuarios.existsByEmailIgnoreCase("curso-invalido@vinculos.test"));
++        body.put("perfil", "EQUIPE_MULTIDISCIPLINAR"); body.put("email", "area-invalida@vinculos.test"); body.put("cargo", "Apoio"); body.put("areaAtuacao", "Area inexistente");
++        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body))).andExpect(status().isBadRequest());
++        assertFalse(usuarios.existsByEmailIgnoreCase("area-invalida@vinculos.test"));
++    }
++}

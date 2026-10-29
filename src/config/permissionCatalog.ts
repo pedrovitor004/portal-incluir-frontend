@@ -20,6 +20,6 @@ export const permissionCatalog: { codigo: Permission; nome: string; descricao: s
   { codigo: "academico.gerar", nome: "Gerar conteúdo acadêmico", descricao: "Preparar conteúdo acadêmico para o acompanhamento.", menu: "Professores › Acompanhamento pedagógico › Conteúdo acadêmico", icon: DocumentIcon },
   { codigo: "suporte.consultar", nome: "Consultar atendimentos", descricao: "Visualizar os atendimentos registrados para o estudante.", menu: "Equipe multidisciplinar › Atendimentos", icon: ClipboardIcon },
   { codigo: "suporte.registrar", nome: "Registrar atendimentos", descricao: "Cadastrar e atualizar atendimentos.", menu: "Equipe multidisciplinar › Atendimentos · Registro", icon: ClipboardIcon },
-  { codigo: "planos.gerar", nome: "Gerenciar plano de ação", descricao: "Preparar e consultar planos de ação.", menu: "Estudantes › Plano de Ação", icon: ClipboardIcon },
+  { codigo: "planos.gerar", nome: "Gerenciar plano de ação", descricao: "Preencher, salvar rascunhos, consultar e assinar planos de ação.", menu: "Estudantes › Plano de Ação", icon: ClipboardIcon, dependencia: "estudantes.consultar", disponivel: true },
   { codigo: "pei.consultar", nome: "Consultar PEI", descricao: "Consultar o plano educacional individualizado.", menu: "Estudantes › PEI", icon: DocumentIcon },
 ];

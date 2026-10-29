@@ -1,5 +1,10 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { useSearchParams } from "react-router";
+import StudentFlow from "./components/StudentFlow";
+import StudentExport from "./components/StudentExport";
+import Button from "../../../components/common/Button";
+import { fluxoEstudanteService } from "../../../services/fluxoEstudanteService";
+import type { PlanoAcaoResponse } from "../../../types/planoAcao";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import Swal from "sweetalert2";
 import type { AxiosError } from "axios";
 
@@ -9,6 +14,9 @@ import { estudantesService } from "../../../services/estudantesService";
 import type { PlanoAcaoRequest } from "../../../types/planoAcao";
 import type { EstudanteResponse } from "../../../types/estudante";
 import { useAuth } from "../../../hooks/useAuth";
+import { accessProfiles, canAccess } from "../../../config/access";
+import { alertaFluxo, oferecerEncaminhamento, encaminharEtapa } from "../../../services/fluxoEstudanteAlerts";
+import { pendenciasPlano } from "../../../services/fluxoEstudanteValidation";
 
 const camposIniciais: Omit<
   PlanoAcaoRequest,
@@ -152,13 +160,23 @@ function CampoInformacao({
 }
 
 export default function PlanoAcaoPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { usuario } = useAuth();
+  const navigate = useNavigate();
+  const base = accessProfiles[usuario?.perfil ?? "COORDENADOR"].basePath;
+  const podeAtribuir = !!usuario && ["COORDENADOR", "ADMINISTRADOR"].includes(usuario.perfil) && canAccess(usuario, "estudantes.vincular");
 
   const estudanteId = Number(searchParams.get("estudanteId"));
+  const planoIdSolicitado = searchParams.get("planoId");
+  const [planosExistentes, setPlanosExistentes] = useState<PlanoAcaoResponse[]>([]);
 
   const [formulario, setFormulario] = useState(camposIniciais);
   const [salvando, setSalvando] = useState(false);
+  const [assinando, setAssinando] = useState(false);
+  const [versaoFluxo, setVersaoFluxo] = useState(0);
+  const [planoAtual, setPlanoAtual] = useState<PlanoAcaoResponse | null>(null);
+  const envioPendente = useRef(false);
+  const [atribuido, setAtribuido] = useState(false);
 
   const [estudante, setEstudante] =
     useState<EstudanteResponse | null>(null);
@@ -167,6 +185,8 @@ export default function PlanoAcaoPage() {
     useState(true);
 
   const [erroEstudante, setErroEstudante] = useState(false);
+  const somenteLeitura = !atribuido || !!estudante?.concluido || !!estudante && !estudante.ativo || planoAtual?.status === "ASSINADO" || !!planoAtual?.arquivado;
+  const podeAssinar = !!usuario && canAccess(usuario, "planos.gerar");
 
   const atualizarTexto = (campo: CampoTexto, valor: string) => {
     setFormulario((anterior) => ({
@@ -192,6 +212,8 @@ export default function PlanoAcaoPage() {
       setCarregandoEstudante(true);
       setErroEstudante(false);
       setEstudante(null);
+      setPlanoAtual(null);
+      setFormulario(camposIniciais);
 
       if (!Number.isInteger(estudanteId) || estudanteId <= 0) {
         setErroEstudante(true);
@@ -200,14 +222,24 @@ export default function PlanoAcaoPage() {
       }
 
       try {
-        const dados =
-          await estudantesService.buscarPorId(estudanteId);
+        const [dados, registros, fluxo] = await Promise.all([estudantesService.buscarPorId(estudanteId), planoAcaoService.listarTodos(), fluxoEstudanteService.consultar(estudanteId)]);
+        const todos = registros.filter(p => p.estudanteId === estudanteId).sort((a, b) => b.periodoLetivo.localeCompare(a.periodoLetivo) || b.id - a.id);
+        const existentes = todos.filter(p => !p.arquivado);
+        const existente = planoIdSolicitado ? todos.find(p => p.id === Number(planoIdSolicitado)) : existentes[0];
+        if (planoIdSolicitado && !existente) throw new Error("O plano solicitado não pertence a este estudante.");
 
         if (cancelado) {
           return;
         }
 
         setEstudante(dados);
+        setPlanosExistentes(todos);
+        setAtribuido(usuario?.perfil === "COORDENADOR" || usuario?.perfil === "ADMINISTRADOR" || fluxo.responsaveis.PLANO_ACAO?.usuarioId === usuario?.id);
+        if (existente) {
+          setPlanoAtual(existente);
+          const campos = Object.fromEntries(Object.entries(camposIniciais).map(([k, v]) => [k, existente[k as keyof PlanoAcaoResponse] ?? v])) as typeof camposIniciais;
+          setFormulario(campos);
+        }
 
         setFormulario((anterior) => ({
           ...anterior,
@@ -276,139 +308,99 @@ export default function PlanoAcaoPage() {
     return () => {
       cancelado = true;
     };
-  }, [estudanteId]);
+  }, [estudanteId, planoIdSolicitado, usuario?.id, usuario?.perfil]);
 
   const enviarFormulario = async (
     evento: FormEvent<HTMLFormElement>,
   ) => {
     evento.preventDefault();
+    if (envioPendente.current || somenteLeitura) return;
+    const acao = (evento.nativeEvent as SubmitEvent).submitter?.getAttribute("value");
+    const continuar = acao === "continuar";
+    const assinar = acao === "assinar" || continuar;
+    if (assinar && !podeAssinar) return;
 
     if (!Number.isInteger(estudanteId) || estudanteId <= 0) {
-      await Swal.fire(
-        "Estudante não identificado",
-        "Abra o formulário a partir do perfil do estudante.",
-        "warning",
-      );
+      await alertaFluxo({ titleText: "Estudante não identificado", text: "Abra o formulário a partir do perfil do estudante.", icon: "warning" });
       return;
     }
 
     if (carregandoEstudante) {
-      await Swal.fire(
-        "Aguarde",
-        "Os dados do estudante ainda estão sendo carregados.",
-        "info",
-      );
+      await alertaFluxo({ titleText: "Aguarde", text: "Os dados do estudante ainda estão sendo carregados.", icon: "info" });
       return;
     }
 
     if (!estudante || erroEstudante) {
-      await Swal.fire(
-        "Estudante não encontrado",
-        "Não é possível cadastrar o plano sem carregar um estudante válido.",
-        "warning",
-      );
+      await alertaFluxo({ titleText: "Estudante não encontrado", text: "Não é possível cadastrar o plano sem carregar um estudante válido.", icon: "warning" });
       return;
     }
 
-    if (!usuario || usuario.perfil !== "COORDENADOR") {
-      await Swal.fire(
-        "Acesso não permitido",
-        "É necessário estar autenticado como coordenador para cadastrar o plano.",
-        "warning",
-      );
-      return;
-    }
-
-    const camposObrigatoriosGerais: {
-      campo: CampoTexto;
-      rotulo: string;
-    }[] = [
-      { campo: "periodoLetivo", rotulo: "Período letivo" },
-      { campo: "nomeResponsavel", rotulo: "Nome do responsável" },
-      { campo: "grauParentesco", rotulo: "Grau de parentesco" },
-      { campo: "telefoneResponsavel", rotulo: "Telefone do responsável" },
-      { campo: "emailResponsavel", rotulo: "E-mail do responsável" },
-      {
-        campo: "necessidadesEspecificas",
-        rotulo: "Necessidades específicas",
-      },
-      { campo: "consideracoes", rotulo: "Considerações" },
-      {
-        campo: "avancosDificuldadesPotencialidades",
-        rotulo: "Avanços, dificuldades e potencialidades",
-      },
-      { campo: "principaisDemandas", rotulo: "Principais demandas" },
-      {
-        campo: "propostasIntervencao",
-        rotulo: "Propostas de intervenção",
-      },
-    ];
-
-    let campoVazio = camposObrigatoriosGerais.find(
-      ({ campo }) => !formulario[campo].trim(),
-    );
-
-    if (!campoVazio && formulario.possuiComorbidade && !formulario.comorbidades.trim()) {
-      campoVazio = { campo: "comorbidades", rotulo: "Detalhes sobre comorbidades" };
-    }
-    if (!campoVazio && formulario.usaMedicacaoContinua && !formulario.medicacoes.trim()) {
-      campoVazio = { campo: "medicacoes", rotulo: "Detalhes sobre medicações" };
-    }
-    if (!campoVazio && formulario.frequentaServicoApoio && !formulario.servicosApoio.trim()) {
-      campoVazio = { campo: "servicosApoio", rotulo: "Detalhes sobre serviços de apoio" };
-    }
-    if (
-      !campoVazio &&
-      formulario.possuiDocumentosComprobatorios &&
-      !formulario.documentosComprobatorios.trim()
-    ) {
-      campoVazio = {
-        campo: "documentosComprobatorios",
-        rotulo: "Detalhes sobre documentos comprobatórios",
-      };
-    }
-
-    if (campoVazio) {
-      await Swal.fire(
-        "Preenchimento obrigatório",
-        `Preencha o campo: ${campoVazio.rotulo}.`,
-        "warning",
-      );
-      return;
-    }
-
+    if (!usuario) return;
+    envioPendente.current = true;
     setSalvando(true);
+    setAssinando(assinar);
+    let rascunhoSalvo = false;
 
     try {
+      const pendencias = assinar ? pendenciasPlano(formulario) : [];
+      const delegar = pendencias.length > 0 && await oferecerEncaminhamento(pendencias, podeAtribuir);
+      if (pendencias.length && !delegar) return;
+      if (assinar && !delegar) {
+        const confirmacao = await alertaFluxo({
+          title: "Marcar plano como assinado?",
+          text: "As informações preenchidas serão salvas e o plano será concluído. Após a assinatura, ele ficará disponível somente para consulta.",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Marcar como assinado e concluir",
+          cancelButtonText: "Continuar preenchendo",
+        });
+        if (!confirmacao.isConfirmed) return;
+      }
       const request: PlanoAcaoRequest = {
         ...formulario,
         estudanteId,
         coordenadorResponsavelId: usuario.perfilId,
       };
 
-      const plano = await planoAcaoService.criar(request);
+      const plano = await fluxoEstudanteService.salvarPlano(estudanteId, request, planoAtual?.id ?? null);
+      setPlanoAtual(plano);
+      setPlanosExistentes(atuais => [plano, ...atuais.filter(p => p.id !== plano.id)]);
+      rascunhoSalvo = true;
 
-      await Swal.fire({
-        title: "Plano de ação cadastrado!",
-        text: `O plano de ação nº ${plano.id} foi salvo como rascunho.`,
+      if (delegar) {
+        if (await encaminharEtapa(estudanteId, "PLANO_ACAO", base, plano.id)) { setVersaoFluxo(v => v + 1); if (continuar) navigate(`${base}/estudantes/${estudanteId}/etapas/pei`); }
+        return;
+      }
+      if (assinar) {
+        const planoAssinado = await planoAcaoService.assinar(plano.id);
+        setPlanoAtual(planoAssinado);
+        setPlanosExistentes(atuais => [planoAssinado, ...atuais.filter(p => p.id !== planoAssinado.id)]);
+      }
+
+      await alertaFluxo({
+        title: assinar ? "Plano de ação concluído!" : "Plano de ação salvo!",
+        text: assinar ? `O plano de ação nº ${plano.id} foi marcado como assinado e está concluído.` : `O plano de ação nº ${plano.id} foi salvo como rascunho.`,
         icon: "success",
         confirmButtonText: "OK",
       });
+      if (continuar) navigate(`${base}/estudantes/${estudanteId}/etapas/pei`);
     } catch (erro) {
       const erroAxios = erro as AxiosError<{ message?: string }>;
 
       const mensagem =
         erroAxios.response?.data?.message ??
-        "Não foi possível cadastrar o plano de ação. Verifique os dados e tente novamente.";
+        "Verifique os dados e tente novamente.";
 
-      await Swal.fire({
-        title: "Erro ao cadastrar",
-        text: mensagem,
+      await alertaFluxo({
+        title: assinar ? "Não foi possível concluir o plano" : "Erro ao salvar",
+        text: assinar && rascunhoSalvo ? `O rascunho foi salvo, mas o plano ainda não foi assinado. ${mensagem}` : mensagem,
         icon: "error",
         confirmButtonText: "Entendi",
       });
     } finally {
+      envioPendente.current = false;
       setSalvando(false);
+      setAssinando(false);
     }
   };
 
@@ -487,6 +479,10 @@ export default function PlanoAcaoPage() {
         </p>
       </header>
 
+      <StudentFlow key={`${planoAtual?.id}-${planoAtual?.status}-${versaoFluxo}`} estudanteId={Number.isSafeInteger(estudanteId) && estudanteId > 0 ? estudanteId : undefined} atual="plano" planoStatus={planoAtual?.status} somenteLeitura={somenteLeitura} />
+      {planoAtual && <section className="rounded-xl border border-green-100 bg-white p-4"><label className="block text-sm font-semibold text-slate-800">Plano em edição<select value={planoAtual.id} disabled={salvando || carregandoEstudante} onChange={e => setSearchParams({ estudanteId: String(estudanteId), planoId: e.target.value })} className="mt-2 block min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 font-normal">{planosExistentes.map(p => <option key={p.id} value={p.id}>Período {p.periodoLetivo || "não informado"} · {p.arquivado ? "Arquivado" : p.status === "ASSINADO" ? "Assinado" : "Rascunho"} · Registro {p.id}</option>)}</select></label><p className="mt-2 text-xs text-slate-500">Salvar atualiza este registro. Nenhum novo plano é criado ao continuar o preenchimento.</p></section>}
+      {planoAtual && <StudentExport estudanteId={estudanteId} tipo="plano" planoId={planoAtual.id} />}
+      {planoAtual?.status === "ASSINADO" ? <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900"><strong>Plano de ação concluído · Assinado.</strong> Este registro está disponível somente para consulta.</p> : somenteLeitura && <p className="rounded-xl bg-sky-50 p-4 text-sm text-sky-900">Este registro está disponível somente para consulta.</p>}
       {carregandoEstudante && (
         <div
           className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"
@@ -507,7 +503,7 @@ export default function PlanoAcaoPage() {
       )}
 
       {estudante && (
-        <form onSubmit={enviarFormulario} className="space-y-6">
+        <form onSubmit={enviarFormulario} className="space-y-6"><fieldset disabled={salvando || somenteLeitura} className="min-w-0 space-y-6">
           <section className={secaoClass}>
             <div>
               <h2 className="text-lg font-semibold text-slate-900">
@@ -572,7 +568,6 @@ export default function PlanoAcaoPage() {
                   atualizarTexto("periodoLetivo", evento.target.value)
                 }
                 placeholder="Ex.: 2026.1"
-                required
                 maxLength={20}
               />
             </label>
@@ -598,7 +593,6 @@ export default function PlanoAcaoPage() {
                   onChange={(evento) =>
                     atualizarTexto("nomeResponsavel", evento.target.value)
                   }
-                  required
                   maxLength={255}
                 />
               </label>
@@ -612,7 +606,6 @@ export default function PlanoAcaoPage() {
                     atualizarTexto("grauParentesco", evento.target.value)
                   }
                   placeholder="Ex.: Mãe, pai, avó ou tutor"
-                  required
                   maxLength={255}
                 />
               </label>
@@ -629,7 +622,6 @@ export default function PlanoAcaoPage() {
                       evento.target.value,
                     )
                   }
-                  required
                   maxLength={255}
                 />
               </label>
@@ -643,7 +635,6 @@ export default function PlanoAcaoPage() {
                   onChange={(evento) =>
                     atualizarTexto("emailResponsavel", evento.target.value)
                   }
-                  required
                   maxLength={255}
                 />
               </label>
@@ -778,7 +769,6 @@ export default function PlanoAcaoPage() {
                     evento.target.value,
                   )
                 }
-                required
                 maxLength={5000}
                 placeholder="Descreva as necessidades específicas e os aspectos relevantes para o acompanhamento."
               />
@@ -809,7 +799,6 @@ export default function PlanoAcaoPage() {
                 onChange={(evento) =>
                   atualizarTexto("consideracoes", evento.target.value)
                 }
-                required
                 maxLength={5000}
                 placeholder="Registre observações relevantes."
               />
@@ -838,7 +827,6 @@ export default function PlanoAcaoPage() {
                     evento.target.value,
                   )
                 }
-                required
                 maxLength={5000}
                 placeholder="Registre avanços, dificuldades e potencialidades."
               />
@@ -864,7 +852,6 @@ export default function PlanoAcaoPage() {
                 onChange={(evento) =>
                   atualizarTexto("principaisDemandas", evento.target.value)
                 }
-                required
                 maxLength={5000}
                 placeholder="Descreva as principais demandas identificadas."
               />
@@ -890,7 +877,6 @@ export default function PlanoAcaoPage() {
                 onChange={(evento) =>
                   atualizarTexto("propostasIntervencao", evento.target.value)
                 }
-                required
                 maxLength={5000}
                 placeholder="Descreva as estratégias e ações propostas."
               />
@@ -907,15 +893,11 @@ export default function PlanoAcaoPage() {
               Voltar
             </button>
 
-            <button
-              type="submit"
-              disabled={salvando || carregandoEstudante || erroEstudante}
-              className="rounded-lg bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {salvando ? "Salvando..." : "Cadastrar plano de ação"}
-            </button>
+            <Button type="submit" variant="secondary" disabled={salvando || carregandoEstudante || erroEstudante || somenteLeitura}>{salvando && !assinando ? "Salvando..." : "Salvar rascunho para continuar depois"}</Button>
+            {podeAssinar && !somenteLeitura && <Button type="submit" name="acao" value="assinar" disabled={salvando || carregandoEstudante || erroEstudante}>{assinando ? "Concluindo..." : "Marcar como assinado e concluir"}</Button>}
+            {podeAssinar && !somenteLeitura && <Button type="submit" variant="secondary" name="acao" value="continuar" disabled={salvando || carregandoEstudante || erroEstudante}>Concluir e ir para PEI →</Button>}
           </div>
-        </form>
+        </fieldset></form>
       )}
     </main>
   );

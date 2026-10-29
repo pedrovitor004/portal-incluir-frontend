@@ -1,5 +1,6 @@
+import { useNavigate } from "react-router";
 import { useAuth } from "../../../../hooks/useAuth";
-import { canAccess } from "../../../../config/access";
+import { accessProfiles, canAccess } from "../../../../config/access";
 import { useEffect, useRef, useState } from "react";
 import Modal from "../../../../components/common/Modal";
 import LoadingState from "../../../../components/common/LoadingState";
@@ -16,6 +17,8 @@ const estados = { registrado: { texto: "Registrado", cor: "bg-green-50 text-gree
 type Props = { estudante: Estudante; modo: "acoes" | "pendencias"; onClose: () => void; onUpdate: (estudante: EstudanteResponse) => void; onPerfil: () => void; onCadastro: () => void };
 export default function StudentPanel({ estudante, modo, onClose, onUpdate, onPerfil, onCadastro }: Props) {
   const { usuario } = useAuth();
+  const navigate = useNavigate();
+  const base = accessProfiles[usuario?.perfil ?? "COORDENADOR"].basePath;
   const editarCadastro = !!usuario && canAccess(usuario, "estudantes.editar") && canAccess(usuario, "anamnese");
   const [dados, setDados] = useState<{ estudante: EstudanteResponse; etapas: EtapaEstudante[] } | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -53,7 +56,7 @@ export default function StudentPanel({ estudante, modo, onClose, onUpdate, onPer
       </>}
       {dados && modo === "pendencias" && <>
         <p className="text-xs leading-relaxed text-slate-500">As etapas abaixo mostram os registros encontrados e o que precisa de revisão. A presença de um documento não confirma que todo o acompanhamento foi concluído.</p>
-        <ol className="space-y-3">{dados.etapas.map((etapa, indice) => { const estado = estados[etapa.estado]; return <li key={etapa.id} className="rounded-xl border border-slate-200 bg-white p-4"><div className="flex items-start gap-3"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${estado.cor}`}>{etapa.estado === "registrado" ? "✓" : indice + 1}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold text-slate-800">{etapa.titulo}</h3><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${estado.cor}`}>{estado.texto}</span></div><p className="mt-2 text-xs leading-relaxed text-slate-500">{etapa.resumo}</p>{etapa.destino && <button type="button" disabled={executando || (etapa.destino === "cadastro" && (dados.estudante.concluido || !editarCadastro))} onClick={etapa.destino === "cadastro" ? onCadastro : onPerfil} className="mt-3 min-h-9 text-xs font-semibold text-green-800 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-green-700 disabled:opacity-50">{etapa.destino === "cadastro" ? dados.estudante.concluido ? "Cadastro concluído · somente leitura" : "Revisar dados do estudante →" : "Abrir perfil do estudante →"}</button>}</div></div></li>; })}</ol>
+        <ol className="space-y-3">{dados.etapas.map((etapa, indice) => { const estado = estados[etapa.estado]; return <li key={etapa.id} className="rounded-xl border border-slate-200 bg-white p-4"><div className="flex items-start gap-3"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${estado.cor}`}>{etapa.estado === "registrado" ? "✓" : indice + 1}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold text-slate-800">{etapa.titulo}</h3><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${estado.cor}`}>{estado.texto}</span></div><p className="mt-2 text-xs leading-relaxed text-slate-500">{etapa.resumo}</p>{etapa.destino && <button type="button" disabled={executando || (etapa.destino === "cadastro" && (dados.estudante.concluido || !editarCadastro))} onClick={() => { onClose(); navigate(etapa.id === "anamnese" ? `${base}/anamnese?estudanteId=${estudante.id}` : etapa.id === "plano" ? `${base}/plano-acao?estudanteId=${estudante.id}` : `${base}/estudantes/${estudante.id}/etapas/${etapa.id}`); }} className="mt-3 min-h-9 text-xs font-semibold text-green-800 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-green-700 disabled:opacity-50">{etapa.destino === "cadastro" ? dados.estudante.concluido ? "Cadastro concluído · somente leitura" : "Revisar dados do estudante →" : "Abrir etapa →"}</button>}</div></div></li>; })}</ol>
       </>}
       {executando && <LoadingState compact label="Processando a ação do estudante..." />}
       <div className="flex flex-wrap justify-end gap-2"><Button variant="secondary" disabled={executando} onClick={onPerfil}>Abrir perfil</Button>{dados && editarCadastro && !dados.estudante.concluido && <Button disabled={executando || carregando} onClick={onCadastro}>Editar dados</Button>}</div>

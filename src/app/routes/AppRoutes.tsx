@@ -1,3 +1,5 @@
+import EtapaDocumentoPage from "../../pages/coordenador/estudantes/EtapaDocumentoPage";
+import CadastroEstudantePage from "../../pages/coordenador/estudantes/CadastroEstudantePage";
 import { lazy, Suspense, type ReactNode } from "react";
 import PageErrorBoundary from "../../components/common/PageErrorBoundary";
 import LoadingState from "../../components/common/LoadingState";
@@ -50,6 +52,7 @@ function PerfilRoute({
   if (carregando) return <LoadingState label="Confirmando sua sessão..." />;
   if (erroSessao && !usuario) return <div role="alert" className="mx-auto max-w-xl space-y-4 p-8"><p>Não foi possível confirmar sua sessão. {erroSessao}</p><button type="button" onClick={() => void atualizarSessao()} className="min-h-11 font-semibold text-green-800 underline">Tentar novamente</button></div>;
 
+
   if (!usuario) {
     return <Navigate to={routes.login} replace />;
   }
@@ -84,7 +87,6 @@ export default function AppRoutes() {
         ...(["PROFESSOR", "EQUIPE_MULTIDISCIPLINAR"].includes(perfil) ? [
           <Route key={`${perfil}-estudantes`} path={`${accessProfiles[perfil].basePath}/estudantes`} element={<PerfilRoute perfil={perfil} permission="estudantes.consultar"><GerenciarEstudantes /></PerfilRoute>} />,
           <Route key={`${perfil}-perfil`} path={`${accessProfiles[perfil].basePath}/estudantes/:id`} element={<PerfilRoute perfil={perfil} permission="estudantes.consultar"><PerfilEstudantePage /></PerfilRoute>} />,
-          <Route key={`${perfil}-anamnese`} path={`${accessProfiles[perfil].basePath}/anamnese`} element={<PerfilRoute perfil={perfil} permission="anamnese"><AnamnesePage /></PerfilRoute>} />,
           <Route key={`${perfil}-auditorias`} path={`${accessProfiles[perfil].basePath}/administracao/auditorias`} element={<PerfilRoute perfil={perfil} permission="auditorias"><Suspense fallback={<LoadingState />}><AuditoriasPage /></Suspense></PerfilRoute>} />,
         ] : []),
         ...(perfil !== "COORDENADOR" ? [
@@ -187,6 +189,10 @@ export default function AppRoutes() {
         }
       />
 
+      {(["COORDENADOR", "ADMINISTRADOR"] as const).map(perfil => <Route key={perfil + "-cadastro"} path={accessProfiles[perfil].basePath + "/cadastro-estudante"} element={<PerfilRoute perfil={perfil} permission="anamnese"><CadastroEstudantePage /></PerfilRoute>} />)}
+      {(["PROFESSOR", "EQUIPE_MULTIDISCIPLINAR"] as const).map(perfil => <Route key={perfil + "-anamnese"} path={accessProfiles[perfil].basePath + "/anamnese"} element={<PerfilRoute perfil={perfil} permission="anamnese"><AnamnesePage /></PerfilRoute>} />)}
+      {(["ADMINISTRADOR", "PROFESSOR", "EQUIPE_MULTIDISCIPLINAR"] as const).map(perfil => <Route key={perfil + "-plano"} path={accessProfiles[perfil].basePath + "/plano-acao"} element={<PerfilRoute perfil={perfil} permission="estudantes.consultar"><PlanoAcaoPage /></PerfilRoute>} />)}
+      {(["COORDENADOR", "ADMINISTRADOR", "PROFESSOR", "EQUIPE_MULTIDISCIPLINAR"] as const).map(perfil => <Route key={perfil + "-etapa-documento"} path={accessProfiles[perfil].basePath + "/estudantes/:id/etapas/:etapa"} element={<PerfilRoute perfil={perfil} permission="estudantes.consultar"><EtapaDocumentoPage /></PerfilRoute>} />)}
       {/* Página não encontrada */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
