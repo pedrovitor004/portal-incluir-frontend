@@ -3,8 +3,7 @@ import { acoesDocumento, type AcaoDocumento } from "../../../config/documentActi
 import { confirmarAcaoDocumento } from "../../../services/documentConfirmation";
 import LoadingState from "../../../components/common/LoadingState";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
-import { useNavigate, useSearchParams } from "react-router";
+import { Link,useNavigate, useSearchParams } from "react-router";
 import { useDocumentos } from "../../../hooks/useDocumentos";
 import type { Documento, FiltroDocumento } from "../../../types/documento";
 import { nomeTipoDocumento } from "../../../config/documentos";
