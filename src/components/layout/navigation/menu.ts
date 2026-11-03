@@ -11,6 +11,7 @@ export type MenuItem = {
   groupOnly?: boolean;
   section?: "Professores" | "Equipe multidisciplinar";
   children?: MenuItem[];
+  matchPaths?: string[];
 };
 
 const icons = { home: HomeIcon, students: StudentsIcon, clipboard: ClipboardIcon, document: DocumentIcon, chart: ChartIcon, users: UsersIcon, shield: ShieldIcon };

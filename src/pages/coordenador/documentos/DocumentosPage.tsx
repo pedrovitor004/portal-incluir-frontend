@@ -4,6 +4,7 @@ import { confirmarAcaoDocumento } from "../../../services/documentConfirmation";
 import LoadingState from "../../../components/common/LoadingState";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useDocumentos } from "../../../hooks/useDocumentos";
 import type { Documento, FiltroDocumento } from "../../../types/documento";
 import { nomeTipoDocumento } from "../../../config/documentos";
@@ -13,9 +14,10 @@ import { notificationService } from "../../../services/notificationService";
 import Modal from "../../../components/common/Modal";
 import DocumentTypeCards from "./components/DocumentTypeCards";
 import DocumentsTable from "./components/DocumentsTable";
-import DocumentDetails from "./components/DocumentDetails";
+import DocumentViewer from "./components/DocumentViewer";
 import { useAuth } from "../../../hooks/useAuth";
 import { canAccess } from "../../../config/access";
+import { accessProfiles } from "../../../config/access";
 import { routes } from "../../../config/routes";
 
 
@@ -35,8 +37,11 @@ export default function DocumentosPage() {
   const [erroAcao, setErroAcao] = useState("");
   const operacaoPendente = useRef(false);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const documentos = useMemo(() => consulta?.documentos ?? [], [consulta]);
-  const visualizar = useCallback((documento: Documento) => setAcao({ tipo: "visualizar", documento }), []);
+  const visualizar = useCallback((documento: Documento) => {
+    setSearchParams({ documento: documento.tipo, id: String(documento.id) });
+  }, [setSearchParams]);
   const pedirAcao = useCallback((documento: Documento, tipo: AcaoDocumento) => { setErroAcao(""); setAcao({ tipo, documento }); }, []);
   const editar = useCallback((documento: Documento) => {
     if (documento.tipo === "PEI" && usuario?.perfil === "COORDENADOR") {
@@ -49,6 +54,10 @@ export default function DocumentosPage() {
       if (usuario?.perfil === "PROFESSOR" && usuario.perfilId === documento.professorId && canAccess(usuario, "pedagogico.editar") && !documento.arquivado) {
         navigate(`${routes.cadastroPeaProfessor}?peaId=${documento.id}`);
       }
+      return;
+    }
+    if (documento.tipo === "ANAMNESE" && usuario) {
+      navigate(`${accessProfiles[usuario.perfil].basePath}/anamnese?estudanteId=${documento.estudanteId}`);
       return;
     }
     const destinos = { PEI: "pei", ANAMNESE: "anamnese", PLANO_ACAO: "plano-acao", RAI: "rai" };
@@ -70,9 +79,11 @@ export default function DocumentosPage() {
     finally { operacaoPendente.current = false; setExecutando(false); setConfirmando(false); }
   }
   const configAcao = acao && acao.tipo !== "visualizar" ? acoesDocumento[acao.tipo] : null;
-  const pendente = filtro === "ANAMNESE" || filtro === "RAI";
+  const pendente = filtro === "RAI";
   const falhas = consulta?.falhas.filter(f => filtro === "TODOS" || f.tipo === filtro) ?? [];
   const vazio = pendente ? `A consulta de ${filtro === "RAI" ? "RAIs" : "anamneses"} estará disponível em breve.` : falhas.length ? "Não foi possível consultar os documentos deste tipo." : "Nenhum documento encontrado para os filtros selecionados.";
+
+  if (searchParams.has("documento")) return <DocumentViewer tipo={searchParams.get("documento") || ""} id={Number(searchParams.get("id"))} onBack={() => setSearchParams({})} />;
 
   return <div className="mx-auto w-full max-w-[1600px] space-y-6 pb-6">
     <header><h1 data-page-title className="text-2xl font-bold leading-tight text-primary sm:text-[28px]">Documentos</h1><p className="mt-1 text-sm text-slate-500">Consulte os registros de acompanhamento dos estudantes e encontre cada documento por tipo.</p></header>
@@ -98,7 +109,6 @@ export default function DocumentosPage() {
       icon={configAcao ? <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7"><path d={configAcao.icone} /></svg> : undefined}
       title={configAcao?.titulo || acao?.documento.nome || "Documento"}
       description={configAcao ? "Confira os dados do documento antes de continuar." : "Informações registradas no acompanhamento do estudante."}>
-      {acao?.tipo === "visualizar" && <DocumentDetails documento={acao.documento} />}
       {acao && configAcao && <div className="space-y-5">
         <div className="rounded-xl bg-[var(--accent-soft)] p-4"><p className="font-semibold text-[var(--accent-main)]">{acao.documento.nome}</p><p className="mt-1 text-slate-700">{acao.documento.estudanteNome}</p><p className="mt-1 text-xs text-slate-500">Matrícula: {acao.documento.estudanteMatricula} · {acao.documento.periodo}</p></div>
         <p className="text-slate-600">{configAcao.descricao}</p>

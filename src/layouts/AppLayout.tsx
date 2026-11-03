@@ -1,3 +1,4 @@
+import SectionNavigation from "../components/layout/navigation/SectionNavigation";
 import DataConsultationIndicator from "../components/common/DataConsultationIndicator";
 import { useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
@@ -42,7 +43,7 @@ export default function AppLayout({ children }: LayoutProps) {
       <div className="flex min-h-0 flex-1">
         <DesktopNavigation {...sidebarProps} collapsed={collapsed} onToggle={() => setCollapsed(previous => !previous)} />
         {mobileOpen && <MobileNavigation {...sidebarProps} onClose={closeMobileMenu} />}
-        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-8"><DataConsultationIndicator />{children}</main>
+        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-8"><DataConsultationIndicator /><SectionNavigation />{children}</main>
       </div>
     </div>
   );

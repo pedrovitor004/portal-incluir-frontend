@@ -1,3 +1,4 @@
+import type { EstudanteResponse } from "../types/estudante";
 import { userSession } from "./sessionStorage";
 import { canAccess } from "../config/access";
 import { acaoPermitida, acaoPeaPermitida, type AcaoDocumento } from "../config/documentActions";
@@ -19,6 +20,17 @@ export function mapearPea(pea: AdaptacaoPedagogicaResponse): Documento {
     arquivado: pea.arquivado, assinado: false, status: pea.arquivado ? "Arquivado" : "Ativo",
     detalhes: [{ titulo: "Professor responsável", valor: pea.professorNome },
       ...camposPea.map(campo => ({ titulo: campo.label, valor: pea[campo.name] }))],
+  };
+}
+
+export function mapearAnamnese(estudante: EstudanteResponse): Documento {
+  return {
+    chave: `ANAMNESE-${estudante.id}`, id: estudante.id, tipo: "ANAMNESE", nome: "Anamnese",
+    estudanteId: estudante.id, estudanteNome: estudante.nomeCompleto,
+    estudanteMatricula: estudante.matricula, curso: estudante.curso, periodo: estudante.periodoIngresso,
+    dataRegistro: null, dataAtualizacao: null,
+    arquivado: false, assinado: false, status: "Registrada",
+    detalhes: [],
   };
 }
 
@@ -119,17 +131,31 @@ const fontes = [
 ] as const;
 
 export const documentosService = {
+  async buscar(documento: Pick<Documento, "tipo" | "id">, signal?: AbortSignal): Promise<Documento> {
+    if (documento.tipo === "ANAMNESE") {
+      const { data } = await http.get<EstudanteResponse>(`/estudantes/${documento.id}`, { signal });
+      const { camposAnamnese } = await import("./documentosEstudante/exportar");
+      return { ...mapearAnamnese(data), detalhes: camposAnamnese(data) };
+    }
+    if (documento.tipo === "PEA") return mapearPea(await adaptacoesPedagogicasService.buscarPorId(documento.id, signal));
+    const fonte = fontes.find(f => f.tipo === documento.tipo);
+    if (!fonte) throw new Error("Consulta indisponível para este tipo de documento.");
+    const { data } = await http.get<PlanoResponse>(`${fonte.endpoint}/${documento.id}`, { signal });
+    return mapearDocumento(data, fonte.tipo);
+  },
   async listar(signal?: AbortSignal, professorId?: number): Promise<ConsultaDocumentos> {
     const consultas = fontes.map(async fonte => {
       const { data } = await http.get<PlanoResponse[]>(fonte.endpoint, { signal });
       return data.map(plano => mapearDocumento(plano, fonte.tipo));
     });
+    consultas.push(http.get<EstudanteResponse[]>("/estudantes", { signal })
+      .then(({ data }) => data.map(mapearAnamnese)));
     if (professorId !== undefined) consultas.push(adaptacoesPedagogicasService.listarPorProfessor(professorId, signal)
       .then(peas => peas.filter(pea => pea.professorId === professorId).map(mapearPea)));
     const respostas = await Promise.allSettled(consultas);
     const consulta: ConsultaDocumentos = { documentos: [], tiposDisponiveis: [], falhas: [] };
     respostas.forEach((resposta, index) => {
-      const tipo = fontes[index]?.tipo ?? "PEA";
+      const tipo = fontes[index]?.tipo ?? (index === fontes.length ? "ANAMNESE" : "PEA");
       if (resposta.status === "fulfilled") {
         consulta.documentos.push(...resposta.value);
         consulta.tiposDisponiveis.push(tipo);

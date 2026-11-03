@@ -1,3 +1,4 @@
+import { alertaPadrao } from "./alertaPadrao";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 import { colorThemes } from "../config/uiThemes";
@@ -24,9 +25,19 @@ export async function confirmarAcaoEstudante(estudante: Estudante, acao: AcaoEst
   return { confirmado: resultado.isConfirmed, dataConclusao: acao === "concluir" && resultado.isConfirmed ? String(resultado.value) : undefined };
 }
 export async function confirmarCadastroEstudante(etapa: "abrir" | "salvar" | "editar", nome?: string) {
-  const resultado = await Swal.fire({ ...padrao, target: getOverlayToolsHost(), titleText: etapa === "abrir" ? "Cadastrar um novo estudante?" : etapa === "editar" ? "Salvar alterações do estudante?" : "Confirmar cadastro do estudante?", text: etapa === "abrir" ? "Você abrirá o formulário de identificação inicial e anamnese. Confira os dados antes de salvar. Plano de Ação, PEI e RAI devem ser acompanhados nas etapas seguintes." : `${nome || "Estudante"}. ${etapa === "editar" ? "Os dados informados substituirão os valores atuais no cadastro." : "Os dados informados serão gravados e o estudante ficará disponível para acompanhamento."}`, icon: "question", iconColor: colorThemes.green["--accent-main"], confirmButtonColor: colorThemes.green["--accent-main"], confirmButtonText: etapa === "abrir" ? "Sim, iniciar cadastro" : "Sim, salvar" });
+  if (etapa === "abrir") {
+    const resultado = await alertaPadrao({
+      titleText: "Iniciar cadastro de estudante?",
+      html: '<div class="text-left text-sm leading-6 text-slate-600"><p>A partir de agora, você iniciará um fluxo de cadastro de um estudante. As etapas são as seguintes:</p><ol class="my-4 list-decimal space-y-2 pl-5"><li><strong>Anamnese e cadastro inicial:</strong> identificação, dados acadêmicos e necessidades do estudante.</li><li><strong>Plano de Ação:</strong> demandas identificadas e propostas de intervenção.</li><li><strong>PEI:</strong> Plano Educacional Individualizado para orientar o acompanhamento.</li><li><strong>RAI:</strong> Relatório de Acompanhamento Individual, reunindo os registros do fluxo.</li></ol><p>Você pode salvar o preenchimento e continuar depois. Deseja iniciar agora?</p></div>',
+      icon: "question", iconColor: colorThemes.green["--accent-main"],
+      showCancelButton: true, confirmButtonText: "Sim, iniciar cadastro", cancelButtonText: "Não, voltar",
+    });
+    return resultado.isConfirmed;
+  }
+  const resultado = await Swal.fire({ ...padrao, target: getOverlayToolsHost(), titleText: etapa === "editar" ? "Salvar alterações do estudante?" : "Confirmar cadastro do estudante?", text: `${nome || "Estudante"}. ${etapa === "editar" ? "Os dados informados substituirão os valores atuais no cadastro." : "Os dados informados serão gravados e o estudante ficará disponível para acompanhamento."}`, icon: "question", iconColor: colorThemes.green["--accent-main"], confirmButtonColor: colorThemes.green["--accent-main"], confirmButtonText: "Sim, salvar" });
   return resultado.isConfirmed;
 }
+
 export async function confirmarConclusaoAnamnese(nome: string) {
   const resultado = await Swal.fire({ ...padrao, target: getOverlayToolsHost(), titleText: "Concluir anamnese?", text: `As informações de ${nome} serão salvas e esta etapa ficará marcada como concluída.`, icon: "question", iconColor: colorThemes.green["--accent-main"], confirmButtonColor: colorThemes.green["--accent-main"], confirmButtonText: "Concluir anamnese" });
   return resultado.isConfirmed;
