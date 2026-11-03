@@ -8,8 +8,16 @@ export const tiposDocumento: { tipo: FiltroDocumento; titulo: string; descricao:
   { tipo: "RAI", titulo: "RAIs", descricao: "Relatórios de acompanhamento individual", cor: "bg-rose-50 text-rose-700", icone: "M5 3h10l4 4v14H5V3ZM14 3v5h5M9 17v-3M12 17v-6M15 17v-4" },
 ];
 
+export const cartaoPea: (typeof tiposDocumento)[number] = {
+  tipo: "PEA", titulo: "PEAs", descricao: "Planos de ensino adaptados", cor: "bg-rose-50 text-rose-700", icone: "M5 3h10l4 4v14H5V3ZM14 3v5h5M9 12h6M9 16h6",
+};
+
+export function tiposDocumentoPorPerfil(professor: boolean) {
+  return professor ? tiposDocumento.map(card => card.tipo === "RAI" ? cartaoPea : card) : tiposDocumento;
+}
+
 export const nomeTipoDocumento: Record<TipoDocumento, string> = {
-  PEI: "PEI", ANAMNESE: "Anamnese", PLANO_ACAO: "Plano de ação", RAI: "RAI",
+  PEI: "PEI", ANAMNESE: "Anamnese", PLANO_ACAO: "Plano de ação", RAI: "RAI", PEA: "PEA",
 };
 
 export function formatarDataDocumento(value: string | null): string {

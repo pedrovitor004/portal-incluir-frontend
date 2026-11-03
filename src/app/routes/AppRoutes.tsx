@@ -25,6 +25,7 @@ import AnamnesePage from "../../pages/coordenador/estudantes/AnamnesePage";
 import PerfilEstudantePage from "../../pages/coordenador/estudantes/PerfilEstudantePage";
 import PlanoAcaoPage from "../../pages/coordenador/estudantes/PlanoAcaoPage";
 
+const CadastroPeaPage = lazy(() => import("../../pages/professor/adaptacoes/CadastroPeaPage"));
 const RelatoriosPage = lazy(() => import("../../pages/coordenador/relatorios/RelatoriosPage"));
 const DocumentosPage = lazy(() => import("../../pages/coordenador/documentos/DocumentosPage"));
 const AuditoriasPage = lazy(() => import("../../pages/coordenador/auditorias/AuditoriasPage"));
@@ -77,6 +78,7 @@ export default function AppRoutes() {
   return (
     <PageErrorBoundary key={location.pathname}>
     <Routes>
+      <Route path={routes.cadastroPeaProfessor} element={<PerfilRoute perfil="PROFESSOR" permission="pedagogico.editar"><Suspense fallback={<LoadingState />}><CadastroPeaPage /></Suspense></PerfilRoute>} />
       <Route path="/coordenador/adaptacoes" element={<PerfilRoute perfil="COORDENADOR" permission="pedagogico.consultar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="adaptacoes" visao="adaptacoes" /></Suspense></PerfilRoute>} />
       <Route path="/coordenador/conteudo-academico" element={<PerfilRoute perfil="COORDENADOR" permission="academico.gerar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="conteudo" visao="conteudo" /></Suspense></PerfilRoute>} />
       <Route path="/coordenador/atendimentos" element={<PerfilRoute perfil="COORDENADOR" permission="suporte.consultar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="atendimentos" visao="atendimentos" /></Suspense></PerfilRoute>} />

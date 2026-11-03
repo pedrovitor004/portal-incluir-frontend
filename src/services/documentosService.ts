@@ -1,10 +1,26 @@
 import { userSession } from "./sessionStorage";
 import { canAccess } from "../config/access";
-import { acaoPermitida, type AcaoDocumento } from "../config/documentActions";
+import { acaoPermitida, acaoPeaPermitida, type AcaoDocumento } from "../config/documentActions";
+import type { Usuario } from "../types/auth";
 import { endpoints } from "../config/endpoints";
 import type { ConsultaDocumentos, Documento } from "../types/documento";
 import { mensagemErro } from "./apiError";
 import { http } from "./http";
+import { adaptacoesPedagogicasService } from "./adaptacoesPedagogicasService";
+import { camposPea } from "./cadastroPeaValidation";
+import type { AdaptacaoPedagogicaResponse } from "../types/adaptacaoPedagogica";
+
+export function mapearPea(pea: AdaptacaoPedagogicaResponse): Documento {
+  return {
+    chave: `PEA-${pea.id}`, id: pea.id, tipo: "PEA", nome: `PEA · ${pea.componenteCurricular}`,
+    estudanteId: pea.estudanteId, estudanteNome: pea.estudanteNome, estudanteMatricula: pea.estudanteMatricula,
+    curso: pea.estudanteCurso, periodo: pea.semestreAno, professorId: pea.professorId,
+    dataRegistro: pea.dataCriacao, dataAtualizacao: pea.dataAtualizacao,
+    arquivado: pea.arquivado, assinado: false, status: pea.arquivado ? "Arquivado" : "Ativo",
+    detalhes: [{ titulo: "Professor responsável", valor: pea.professorNome },
+      ...camposPea.map(campo => ({ titulo: campo.label, valor: pea[campo.name] }))],
+  };
+}
 
 export interface PlanoResponse {
   adaptacoesPedagogicas?: {
@@ -103,14 +119,17 @@ const fontes = [
 ] as const;
 
 export const documentosService = {
-  async listar(signal?: AbortSignal): Promise<ConsultaDocumentos> {
-    const respostas = await Promise.allSettled(fontes.map(async fonte => {
+  async listar(signal?: AbortSignal, professorId?: number): Promise<ConsultaDocumentos> {
+    const consultas = fontes.map(async fonte => {
       const { data } = await http.get<PlanoResponse[]>(fonte.endpoint, { signal });
       return data.map(plano => mapearDocumento(plano, fonte.tipo));
-    }));
+    });
+    if (professorId !== undefined) consultas.push(adaptacoesPedagogicasService.listarPorProfessor(professorId, signal)
+      .then(peas => peas.filter(pea => pea.professorId === professorId).map(mapearPea)));
+    const respostas = await Promise.allSettled(consultas);
     const consulta: ConsultaDocumentos = { documentos: [], tiposDisponiveis: [], falhas: [] };
     respostas.forEach((resposta, index) => {
-      const tipo = fontes[index].tipo;
+      const tipo = fontes[index]?.tipo ?? "PEA";
       if (resposta.status === "fulfilled") {
         consulta.documentos.push(...resposta.value);
         consulta.tiposDisponiveis.push(tipo);
@@ -119,7 +138,15 @@ export const documentosService = {
     consulta.documentos.sort((a, b) => (b.dataRegistro || "").localeCompare(a.dataRegistro || ""));
     return consulta;
   },
-  async executar(documento: Documento, acao: AcaoDocumento): Promise<Documento | null> {
+  async executar(documento: Documento, acao: AcaoDocumento, usuario?: Usuario | null): Promise<Documento | null> {
+    if (documento.tipo === "PEA") {
+      if (!acaoPeaPermitida(documento, acao, usuario === undefined ? userSession.read() : usuario)) throw new Error("Você não tem permissão para esta ação ou o estado do PEA foi alterado.");
+      if (acao === "excluir") { await adaptacoesPedagogicasService.excluir(documento.id); return null; }
+      const pea = acao === "arquivar"
+        ? await adaptacoesPedagogicasService.arquivar(documento.id)
+        : await adaptacoesPedagogicasService.desarquivar(documento.id);
+      return mapearPea(pea);
+    }
     const conta = userSession.read();
     if (!conta || !canAccess(conta, "documentos.gerenciar")) throw new Error("Você não tem permissão para gerenciar documentos.");
     if (!acaoPermitida(documento, acao)) throw new Error("Esta ação não está disponível para o estado atual do documento.");

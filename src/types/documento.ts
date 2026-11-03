@@ -1,4 +1,4 @@
-export type TipoDocumento = "PEI" | "ANAMNESE" | "PLANO_ACAO" | "RAI";
+export type TipoDocumento = "PEI" | "ANAMNESE" | "PLANO_ACAO" | "RAI" | "PEA";
 export type FiltroDocumento = TipoDocumento | "TODOS";
 
 export interface Documento {
@@ -16,6 +16,7 @@ export interface Documento {
   status: string;
   arquivado: boolean;
   assinado: boolean;
+  professorId?: number;
   detalhes: { titulo: string; valor: string }[];
 }
 

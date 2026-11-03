@@ -46,12 +46,18 @@ const navigation: NavigationItem[] = [
 export function getNavigation(conta: PerfilUsuario | Usuario): NavigationItem[] {
   const perfil = typeof conta === "string" ? conta : conta.perfil;
   const visible = (item: NavigationItem) =>
+    (perfil !== "PROFESSOR" || item.slug !== "adaptacoes" || canAccess(conta, "pedagogico.editar")) &&
     (!item.profiles || item.profiles.includes(perfil)) &&
     (!item.permission || canAccess(conta, item.permission)) &&
     (!item.permissionsAny || item.permissionsAny.some(permission => canAccess(conta, permission)));
   const estudantesLabel = perfil === "PROFESSOR" ? "Meus estudantes"
     : perfil === "EQUIPE_MULTIDISCIPLINAR" ? "Estudantes acompanhados" : "Estudantes";
-  return navigation.filter(item => visible(item) && (!item.groupOnly || item.children?.some(visible)))
+  const items = perfil === "PROFESSOR"
+    ? navigation.filter(item => item.slug !== "pedagogico").map(item => item.slug === "estudantes"
+      ? { ...item, children: navigation.find(grupo => grupo.slug === "pedagogico")?.children }
+      : item)
+    : navigation;
+  return items.filter(item => visible(item) && (!item.groupOnly || item.children?.some(visible)))
     .map(item => ({
       ...item,
       label: item.slug === "estudantes" ? estudantesLabel : item.label,

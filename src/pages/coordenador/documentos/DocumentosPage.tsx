@@ -14,11 +14,16 @@ import Modal from "../../../components/common/Modal";
 import DocumentTypeCards from "./components/DocumentTypeCards";
 import DocumentsTable from "./components/DocumentsTable";
 import DocumentDetails from "./components/DocumentDetails";
+import { useAuth } from "../../../hooks/useAuth";
+import { canAccess } from "../../../config/access";
+import { routes } from "../../../config/routes";
 
 
 type Acao = { tipo: "visualizar" | AcaoDocumento; documento: Documento } | null;
 
 export default function DocumentosPage() {
+  const { usuario } = useAuth();
+  const professor = usuario?.perfil === "PROFESSOR";
   useEffect(() => { document.title = "Documentos | Portal Incluir"; }, []);
   const { consulta, carregando, recarregar, remover, atualizar } = useDocumentos();
   const [filtro, setFiltro] = useState<FiltroDocumento>("TODOS");
@@ -34,9 +39,15 @@ export default function DocumentosPage() {
   const visualizar = useCallback((documento: Documento) => setAcao({ tipo: "visualizar", documento }), []);
   const pedirAcao = useCallback((documento: Documento, tipo: AcaoDocumento) => { setErroAcao(""); setAcao({ tipo, documento }); }, []);
   const editar = useCallback((documento: Documento) => {
+    if (documento.tipo === "PEA") {
+      if (usuario?.perfil === "PROFESSOR" && usuario.perfilId === documento.professorId && canAccess(usuario, "pedagogico.editar") && !documento.arquivado) {
+        navigate(`${routes.cadastroPeaProfessor}?peaId=${documento.id}`);
+      }
+      return;
+    }
     const destinos = { PEI: "pei", ANAMNESE: "anamnese", PLANO_ACAO: "plano-acao", RAI: "rai" };
     navigate(`/coordenador/${destinos[documento.tipo]}/${documento.id}/editar`);
-  }, [navigate]);
+  }, [navigate, usuario]);
   async function executarAcao() {
     if (!acao || acao.tipo === "visualizar" || operacaoPendente.current) return;
     const { tipo, documento } = acao;
@@ -44,10 +55,12 @@ export default function DocumentosPage() {
     try {
       if (!await confirmarAcaoDocumento(tipo, documento)) return;
       setConfirmando(false);
-      const atualizado = await documentosService.executar(documento, tipo);
+      const atualizado = await documentosService.executar(documento, tipo, usuario);
       if (atualizado) atualizar(atualizado); else remover(documento.chave);
       setAcao(null); notificationService.success(acoesDocumento[tipo].sucesso);
-    } catch (error) { setErroAcao(mensagemErro(error)); }
+    } catch (error) {
+      setErroAcao(documento.tipo === "PEA" ? `Não foi possível ${acoesDocumento[tipo].botao.toLowerCase()} o PEA. ${mensagemErro(error)}` : mensagemErro(error));
+    }
     finally { operacaoPendente.current = false; setExecutando(false); setConfirmando(false); }
   }
   const configAcao = acao && acao.tipo !== "visualizar" ? acoesDocumento[acao.tipo] : null;
@@ -58,7 +71,7 @@ export default function DocumentosPage() {
   return <div className="mx-auto w-full max-w-[1600px] space-y-6 pb-6">
     <header><h1 data-page-title className="text-2xl font-bold leading-tight text-primary sm:text-[28px]">Documentos</h1><p className="mt-1 text-sm text-slate-500">Consulte os registros de acompanhamento dos estudantes e encontre cada documento por tipo.</p></header>
     {carregando && <LoadingState compact label="Carregando dados da página de documentos..." />}
-    <DocumentTypeCards selecionado={filtro} onSelect={tipo => { setFiltro(tipo); setFiltroSolicitado({ tipo, limpar: false }); }} consulta={consulta} />
+    <DocumentTypeCards professor={professor} selecionado={filtro} onSelect={tipo => { setFiltro(tipo); setFiltroSolicitado({ tipo, limpar: false }); }} consulta={consulta} />
     {falhas.length > 0 && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
       <div><p className="font-semibold">Alguns documentos não puderam ser consultados.</p>{falhas.map(f => <p key={f.tipo} className="mt-1">{nomeTipoDocumento[f.tipo]}: {f.mensagem}</p>)}</div>
       <button type="button" className="min-h-10 rounded-lg border border-amber-300 bg-white px-4 font-semibold focus-visible:outline-2 focus-visible:outline-amber-700" onClick={recarregar}>Tentar novamente</button>
