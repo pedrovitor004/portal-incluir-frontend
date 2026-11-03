@@ -42,9 +42,9 @@ export default function NotificationsButton() {
       <ResourceIcon name="bell" className="h-5 w-5" />
       {naoLidas > 0 && <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-700 px-1 text-[10px] font-bold text-white">{naoLidas > 99 ? "99+" : naoLidas}</span>}
     </button>
-    {open && <section id={id} aria-label="Notificações" className="fixed right-4 top-20 z-50 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-[#dce5dc] bg-white shadow-xl sm:absolute sm:right-0 sm:top-full sm:mt-2">
-      <header className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
-        <h2 className="text-sm font-semibold text-slate-800">Notificações</h2>
+    {open && <section id={id} aria-label="Notificações" onClick={event => { if ((event.target as HTMLElement).closest('a')) setOpen(false); }} className="fixed right-4 top-20 z-50 w-96 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-[#dce5dc] bg-white shadow-2xl sm:absolute sm:right-0 sm:top-full sm:mt-3">
+      <header className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-br from-green-50 to-white px-5 py-4">
+        <div><h2 className="flex items-center gap-2 text-base font-bold text-slate-800"><ResourceIcon name="bell" />Central de notificações</h2><p className="mt-1 text-xs text-slate-500">{naoLidas ? `${naoLidas} pendente${naoLidas === 1 ? '' : 's'} para sua atenção` : 'Você está em dia com suas notificações'}</p></div>
         <button type="button" onClick={() => { setOpen(false); triggerRef.current?.focus(); }} aria-label="Fechar notificações" className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-[#edf7ee] hover:text-primary focus-visible:outline-2 focus-visible:outline-primary">
           <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 6 12 12M18 6 6 18" strokeLinecap="round" /></svg>
         </button>

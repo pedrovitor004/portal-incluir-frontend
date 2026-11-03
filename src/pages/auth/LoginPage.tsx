@@ -37,14 +37,19 @@ export default function LoginPage() {
     event.preventDefault();
     if (enviando) return;
     const form = new FormData(event.currentTarget);
-    setEnviando(true); setErro("");
+    setEnviando(true);
+    setErro("");
     try {
       const usuario = await login({
-        email: String(form.get("email") || ""), senha: String(form.get("password") || ""),
+        email: String(form.get("email") || ""),
+        senha: String(form.get("password") || ""),
       });
       navigate(destinoUsuario(usuario), { replace: true });
-    } catch (error) { setErro(mensagemErro(error)); }
-    finally { setEnviando(false); }
+    } catch (error) {
+      setErro(mensagemErro(error));
+    } finally {
+      setEnviando(false);
+    }
   }
   return (
     <main className="flex min-h-dvh flex-col bg-[#f3f5ef] text-slate-700 lg:h-dvh">
@@ -86,7 +91,9 @@ export default function LoginPage() {
             </div>
 
             <h2 className="mt-10 max-w-[390px] text-[34px] font-semibold leading-[1.1] tracking-tight">
-              Bem-vindo(a) ao Portal<br />Incluir!
+              Bem-vindo(a) ao Portal
+              <br />
+              Incluir!
             </h2>
 
             <p className="mt-9 max-w-[500px] text-lg font-normal leading-[1.4] text-white/90">
@@ -108,30 +115,56 @@ export default function LoginPage() {
           <div className="w-full max-w-[430px]">
             <section className="flex flex-col rounded-2xl border border-emerald-100 bg-white p-6 shadow-[0_12px_40px_rgba(50,93,58,0.08)] sm:p-8">
               <div>
-                <h1 data-page-title className="text-3xl font-bold tracking-tight text-primary">Entrar</h1>
+                <h1
+                  data-page-title
+                  className="text-3xl font-bold tracking-tight text-primary"
+                >
+                  Entrar
+                </h1>
                 <p className="mt-2 text-sm leading-relaxed text-slate-500">
                   Acesse sua conta institucional.
                 </p>
               </div>
 
-              <form onSubmit={entrar} aria-busy={enviando} aria-describedby={erro ? "login-error" : undefined} className="mt-7 flex flex-col">
-                  {enviando && <LoadingState compact label="Entrando no portal..." />}
-                {erro && <p id="login-error" role="alert" className="mb-4 text-sm text-red-700">{erro}</p>}
+              <form
+                onSubmit={entrar}
+                aria-busy={enviando}
+                aria-describedby={erro ? "login-error" : undefined}
+                className="mt-7 flex flex-col"
+              >
+                {enviando && (
+                  <LoadingState compact label="Entrando no portal..." />
+                )}
+                {erro && (
+                  <p
+                    id="login-error"
+                    role="alert"
+                    className="mb-4 text-sm text-red-700"
+                  >
+                    {erro}
+                  </p>
+                )}
                 <div className="flex flex-col gap-5">
                   <label className="flex flex-col gap-2">
                     <span className="text-sm font-semibold text-primary">
-                      E-mail ou usuário
+                      E-mail
                     </span>
                     <input
                       type="text"
-                      required name="email"
+                      required
+                      name="email"
                       autoComplete="username"
-                      placeholder="E-mail ou root"
+                      placeholder="E-mail"
                       className="h-12 w-full rounded-lg border border-emerald-300 bg-white px-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition hover:border-emerald-400 focus:border-primary focus:ring-4 focus:ring-emerald-100"
                     />
                   </label>
 
-                  <PasswordField name="password" label="Senha" autoComplete="current-password" placeholder="Sua senha" />
+                  <PasswordField
+                    name="password"
+                    label="Senha"
+                    autoComplete="current-password"
+                    placeholder="Sua senha"
+                  />
 
                   <div className="-mt-2 flex justify-end">
                     <button
@@ -143,7 +176,8 @@ export default function LoginPage() {
                   </div>
 
                   <button
-                    type="submit" disabled={enviando}
+                    type="submit"
+                    disabled={enviando}
                     className="inline-flex h-12 w-full items-center justify-between rounded-lg bg-primary px-5 text-left text-sm font-semibold text-white shadow-[0_4px_12px_rgba(70,167,75,0.18)] transition hover:bg-primary focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200"
                   >
                     <span>{enviando ? "Entrando..." : "Entrar"}</span>
@@ -159,10 +193,16 @@ export default function LoginPage() {
 
             <div className="auth-footer mt-5 px-1">
               <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm font-medium leading-5 text-primary">
-                <button type="button" className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+                <button
+                  type="button"
+                  className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+                >
                   Privacidade e LGPD
                 </button>
-                <Link to="/register" className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+                <Link
+                  to="/register"
+                  className="text-sm font-medium leading-5 transition hover:text-primary hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+                >
                   Crie sua conta
                 </Link>
               </div>

@@ -17,10 +17,13 @@ const toast = Swal.mixin({
 function show(icon: SweetAlertIcon, message: string) {
   window.dispatchEvent(new CustomEvent("portal:notice", { detail: { kind: icon, message } }));
   // titleText mantém mensagens vindas da API como texto, sem interpretar HTML.
-  void toast.fire({ target: getOverlayToolsHost(), icon, titleText: message, timer: document.documentElement.dataset.persistentNotices === "true" ? 0 : icon === "error" ? 8000 : toastConfig.timer });
+  return toast.fire({ target: getOverlayToolsHost(), icon, titleText: message, timer: document.documentElement.dataset.persistentNotices === "true" ? 0 : icon === "error" ? 8000 : toastConfig.timer });
 }
 
+let avisoLogin: Promise<unknown> = Promise.resolve();
 export const notificationService = {
+  login: () => { avisoLogin = show("success", "Login realizado com sucesso!"); },
+  aguardarLogin: () => avisoLogin,
   success: (message: string) => show("success", message),
   error: (message: string) => show("error", message),
   warning: (message: string) => show("warning", message),

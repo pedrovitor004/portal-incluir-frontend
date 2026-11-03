@@ -19,18 +19,18 @@ export function useNotificacoes() {
         if (controller.signal.aborted) return;
         const erros=[mensagens,pedidos].filter((r): r is PromiseRejectedResult=>r.status==='rejected');
         indisponivel=erros.some(r=>axios.isAxiosError(r.reason) && r.reason.response?.status===404);
-        setEstado(atual=>({ conta, avisos:mensagens.status==='fulfilled' ? mensagens.value : atual.conta===conta ? atual.avisos : [], solicitacoes:pedidos.status==='fulfilled' ? pedidos.value : atual.conta===conta ? atual.solicitacoes : [], erro:indisponivel ? 'O serviço de notificações precisa do backend atualizado. Reinicie o backend e atualize esta consulta.' : erros.map(r=>mensagemErro(r.reason)).join(' ') }));
+        setEstado(atual=>({ conta, avisos:mensagens.status==='fulfilled' ? mensagens.value : atual.conta===conta ? atual.avisos : [], solicitacoes:pedidos.status==='fulfilled' ? pedidos.value : atual.conta===conta ? atual.solicitacoes : [], erro:indisponivel ? 'As notificações estão temporariamente indisponíveis. Tente atualizar a consulta em alguns instantes.' : erros.map(r=>mensagemErro(r.reason)).join(' ') }));
       } finally { consultando = false; }
     }
     void carregar();
     const intervalo = window.setInterval(() => { if (document.visibilityState === "visible") void carregar(); }, 30000);
     const atualizar = () => { if (document.visibilityState === "visible") void carregar(); };
     const alteradas=()=>{indisponivel=false;void carregar();};
-    document.addEventListener("visibilitychange", atualizar); window.addEventListener('portal:access-requests-changed',alteradas);
-    return () => { controller.abort(); window.clearInterval(intervalo); document.removeEventListener("visibilitychange", atualizar); window.removeEventListener('portal:access-requests-changed',alteradas); };
+    document.addEventListener("visibilitychange", atualizar); window.addEventListener('portal:access-requests-changed',alteradas); window.addEventListener('portal:notifications-changed',alteradas);
+    return () => { controller.abort(); window.clearInterval(intervalo); document.removeEventListener("visibilitychange", atualizar); window.removeEventListener('portal:access-requests-changed',alteradas); window.removeEventListener('portal:notifications-changed',alteradas); };
   }, [conta, versao, analise]);
   async function ler(id: number) {
-    try { const aviso = await notificacoesService.ler(id); setEstado(atual => atual.conta === conta ? { ...atual, avisos: atual.avisos.map(n => n.id === id ? aviso : n) } : atual); }
+    try { const aviso = await notificacoesService.ler(id); setEstado(atual => atual.conta === conta ? { ...atual, avisos: atual.avisos.map(n => n.id === id ? aviso : n) } : atual); window.dispatchEvent(new Event('portal:notifications-changed')); }
     catch (erro) { setEstado(atual => atual.conta === conta ? { ...atual, erro: mensagemErro(erro) } : atual); }
   }
   return { usuario, avisos: estado.conta === conta ? estado.avisos : [], solicitacoes:analise && estado.conta===conta ? estado.solicitacoes : [], erro: estado.conta === conta ? estado.erro : "", carregando: !!conta && estado.conta !== conta, ler, atualizar: () => setVersao(v => v + 1) };

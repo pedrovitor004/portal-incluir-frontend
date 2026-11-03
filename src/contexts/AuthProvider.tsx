@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { window.clearInterval(timer); window.removeEventListener("focus", conferir); window.removeEventListener("portal:session-check", conferir); abas.current?.close(); abas.current = null; };
   }, [sessao]);
   async function login(request: LoginRequest) {
-    try { const usuario = await sessao.login(request); abas.current?.changed(); notificationService.success("Login realizado com sucesso!"); return usuario; }
+    try { const usuario = await sessao.login(request); abas.current?.changed(); notificationService.login(); return usuario; }
     catch (erro) { notificationService.error(mensagemErro(erro)); throw erro; }
   }
   async function register(request: CadastroRequest) {
