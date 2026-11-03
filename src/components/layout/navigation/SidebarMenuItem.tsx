@@ -9,7 +9,7 @@ export default function SidebarMenuItem({ item, currentPath, onNavigate }: Props
   const controlsId = useId();
   const [open, setOpen] = useState<boolean>();
   const isActive = (path: string) => currentPath === path || currentPath.startsWith(`${path}/`);
-  const active = isActive(item.path);
+  const active = item.matchPaths?.some(isActive) ?? isActive(item.path);
   const childActive = item.children?.some(child => isActive(child.path));
   const expanded = open ?? Boolean(childActive);
   return (

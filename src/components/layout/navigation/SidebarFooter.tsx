@@ -8,8 +8,10 @@ export default function SidebarFooter({ onLogout }: { onLogout: () => void }) {
         <LogoutIcon className="h-5 w-5" />
         <span>Sair</span>
       </button>
-      <div className="mt-1 flex items-center justify-center">
-        <img src={logoPortal} alt="Portal Incluir" className="h-auto max-h-10 w-auto max-w-full object-contain" />
+      <div className="mt-3 flex items-center justify-start px-3 pb-2">
+        <div className="relative aspect-[685/292] w-[190px] max-w-full overflow-hidden">
+          <img src={logoPortal} alt="Portal Incluir" className="absolute h-auto max-w-none" style={{ width: "109.927%", left: "-4.672%", top: "-7.192%" }} />
+        </div>
       </div>
     </div>
   );
