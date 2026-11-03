@@ -6,6 +6,9 @@ import type {
 import { http } from "./http";
 
 export const adaptacoesPedagogicasService = {
+  async listarTodos(signal?: AbortSignal): Promise<AdaptacaoPedagogicaResponse[]> {
+    return (await http.get<AdaptacaoPedagogicaResponse[]>(endpoints.documentos.adaptacoesPedagogicas, { signal })).data;
+  },
   async arquivar(id: number): Promise<AdaptacaoPedagogicaResponse> {
     return (await http.post<AdaptacaoPedagogicaResponse>(`${endpoints.documentos.adaptacoesPedagogicas}/${id}/arquivar`)).data;
   },

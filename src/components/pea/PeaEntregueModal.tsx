@@ -9,7 +9,7 @@ export default function PeaEntregueModal({ id, onClose, titulo = "PEA entregue p
   const consultar = useCallback((signal: AbortSignal) => adaptacoesPedagogicasService.buscarPorId(id, signal), [id]);
   const consulta = useConsultaPea(consultar);
   return <Modal open onClose={onClose} title={titulo} size="wide">
-    <ConsultaPeaState {...consulta} onRetry={consulta.recarregar} />
+    <ConsultaPeaState rotuloCarregamento="Carregando PEA..." {...consulta} onRetry={consulta.recarregar} />
     {!consulta.carregando && !consulta.erro && consulta.dados && <DocumentDetails documento={mapearPea(consulta.dados)} />}
   </Modal>;
 }
