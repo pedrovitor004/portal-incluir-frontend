@@ -25,6 +25,8 @@ import AnamnesePage from "../../pages/coordenador/estudantes/AnamnesePage";
 import PerfilEstudantePage from "../../pages/coordenador/estudantes/PerfilEstudantePage";
 import PlanoAcaoPage from "../../pages/coordenador/estudantes/PlanoAcaoPage";
 
+const SolicitacoesPeaProfessorPage = lazy(() => import("../../pages/professor/solicitacoes/SolicitacoesPeaProfessorPage"));
+const ResponderSolicitacaoPeaPage = lazy(() => import("../../pages/professor/solicitacoes/ResponderSolicitacaoPeaPage"));
 const CadastroPeaPage = lazy(() => import("../../pages/professor/adaptacoes/CadastroPeaPage"));
 const RelatoriosPage = lazy(() => import("../../pages/coordenador/relatorios/RelatoriosPage"));
 const DocumentosPage = lazy(() => import("../../pages/coordenador/documentos/DocumentosPage"));
@@ -78,6 +80,8 @@ export default function AppRoutes() {
   return (
     <PageErrorBoundary key={location.pathname}>
     <Routes>
+      <Route path={routes.solicitacoesPeaProfessor} element={<PerfilRoute perfil="PROFESSOR" permission="pedagogico.consultar"><Suspense fallback={<LoadingState />}><SolicitacoesPeaProfessorPage /></Suspense></PerfilRoute>} />
+      <Route path={`${routes.solicitacoesPeaProfessor}/:id`} element={<PerfilRoute perfil="PROFESSOR" permission="pedagogico.consultar"><Suspense fallback={<LoadingState />}><ResponderSolicitacaoPeaPage /></Suspense></PerfilRoute>} />
       <Route path={routes.cadastroPeaProfessor} element={<PerfilRoute perfil="PROFESSOR" permission="pedagogico.editar"><Suspense fallback={<LoadingState />}><CadastroPeaPage /></Suspense></PerfilRoute>} />
       <Route path="/coordenador/adaptacoes" element={<PerfilRoute perfil="COORDENADOR" permission="pedagogico.consultar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="adaptacoes" visao="adaptacoes" /></Suspense></PerfilRoute>} />
       <Route path="/coordenador/conteudo-academico" element={<PerfilRoute perfil="COORDENADOR" permission="academico.gerar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="conteudo" visao="conteudo" /></Suspense></PerfilRoute>} />

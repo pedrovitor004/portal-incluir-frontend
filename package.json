@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test:solicitacoes-pea": "node scripts/test-solicitacoes-pea.mjs",
     "test:notificacoes": "node scripts/test-notificacoes.mjs",
     "test:encaminhamento": "node scripts/test-encaminhamento-fluxo.mjs",
     "test:fluxo": "node scripts/test-fluxo-estudante.mjs",

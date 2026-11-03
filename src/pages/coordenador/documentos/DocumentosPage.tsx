@@ -3,6 +3,7 @@ import { acoesDocumento, type AcaoDocumento } from "../../../config/documentActi
 import { confirmarAcaoDocumento } from "../../../services/documentConfirmation";
 import LoadingState from "../../../components/common/LoadingState";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router";
 import { useNavigate, useSearchParams } from "react-router";
 import { useDocumentos } from "../../../hooks/useDocumentos";
 import type { Documento, FiltroDocumento } from "../../../types/documento";
@@ -43,6 +44,12 @@ export default function DocumentosPage() {
   }, [setSearchParams]);
   const pedirAcao = useCallback((documento: Documento, tipo: AcaoDocumento) => { setErroAcao(""); setAcao({ tipo, documento }); }, []);
   const editar = useCallback((documento: Documento) => {
+    if (documento.tipo === "PEI" && usuario?.perfil === "COORDENADOR") {
+      if (canAccess(usuario, "pei.editar") && !documento.arquivado) {
+        navigate(`/coordenador/estudantes/${documento.estudanteId}/etapas/pei?peiId=${documento.id}`);
+      }
+      return;
+    }
     if (documento.tipo === "PEA") {
       if (usuario?.perfil === "PROFESSOR" && usuario.perfilId === documento.professorId && canAccess(usuario, "pedagogico.editar") && !documento.arquivado) {
         navigate(`${routes.cadastroPeaProfessor}?peaId=${documento.id}`);
@@ -80,6 +87,7 @@ export default function DocumentosPage() {
 
   return <div className="mx-auto w-full max-w-[1600px] space-y-6 pb-6">
     <header><h1 data-page-title className="text-2xl font-bold leading-tight text-primary sm:text-[28px]">Documentos</h1><p className="mt-1 text-sm text-slate-500">Consulte os registros de acompanhamento dos estudantes e encontre cada documento por tipo.</p></header>
+    {professor && usuario && <div className="flex flex-wrap gap-4 rounded-xl border border-emerald-200 bg-white p-4">{canAccess(usuario, "pedagogico.consultar") && <Link className="inline-flex min-h-11 items-center font-semibold text-green-800 underline" to={routes.solicitacoesPeaProfessor}>Solicitações de PEA recebidas</Link>}{canAccess(usuario, "pedagogico.editar") && <Link className="inline-flex min-h-11 items-center font-semibold text-green-800 underline" to={routes.cadastroPeaProfessor}>Cadastrar PEA espontâneo</Link>}</div>}
     {carregando && <LoadingState compact label="Carregando dados da página de documentos..." />}
     <DocumentTypeCards professor={professor} selecionado={filtro} onSelect={tipo => { setFiltro(tipo); setFiltroSolicitado({ tipo, limpar: false }); }} consulta={consulta} />
     {falhas.length > 0 && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">

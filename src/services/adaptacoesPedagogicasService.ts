@@ -6,6 +6,9 @@ import type {
 import { http } from "./http";
 
 export const adaptacoesPedagogicasService = {
+  async listarTodos(signal?: AbortSignal): Promise<AdaptacaoPedagogicaResponse[]> {
+    return (await http.get<AdaptacaoPedagogicaResponse[]>(endpoints.documentos.adaptacoesPedagogicas, { signal })).data;
+  },
   async arquivar(id: number): Promise<AdaptacaoPedagogicaResponse> {
     return (await http.post<AdaptacaoPedagogicaResponse>(`${endpoints.documentos.adaptacoesPedagogicas}/${id}/arquivar`)).data;
   },
@@ -18,6 +21,10 @@ export const adaptacoesPedagogicasService = {
   async listarPorProfessor(professorId: number, signal?: AbortSignal): Promise<AdaptacaoPedagogicaResponse[]> {
     if (!Number.isSafeInteger(professorId) || professorId <= 0) throw new Error("Professor não identificado.");
     return (await http.get<AdaptacaoPedagogicaResponse[]>(`${endpoints.documentos.adaptacoesPedagogicas}/professor/${professorId}`, { signal })).data;
+  },
+  async listarPorEstudanteEProfessor(estudanteId: number, professorId: number, signal?: AbortSignal): Promise<AdaptacaoPedagogicaResponse[]> {
+    if (![estudanteId, professorId].every(id => Number.isSafeInteger(id) && id > 0)) throw new Error("Estudante ou professor não identificado.");
+    return (await http.get<AdaptacaoPedagogicaResponse[]>(`${endpoints.documentos.adaptacoesPedagogicas}/estudante/${estudanteId}/professor/${professorId}`, { signal })).data;
   },
   async buscarPorId(id: number, signal?: AbortSignal): Promise<AdaptacaoPedagogicaResponse> {
     return (await http.get<AdaptacaoPedagogicaResponse>(`${endpoints.documentos.adaptacoesPedagogicas}/${id}`, { signal })).data;
