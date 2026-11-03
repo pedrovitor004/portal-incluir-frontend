@@ -39,6 +39,12 @@ export default function DocumentosPage() {
   const visualizar = useCallback((documento: Documento) => setAcao({ tipo: "visualizar", documento }), []);
   const pedirAcao = useCallback((documento: Documento, tipo: AcaoDocumento) => { setErroAcao(""); setAcao({ tipo, documento }); }, []);
   const editar = useCallback((documento: Documento) => {
+    if (documento.tipo === "PEI" && usuario?.perfil === "COORDENADOR") {
+      if (canAccess(usuario, "pei.editar") && !documento.arquivado) {
+        navigate(`/coordenador/estudantes/${documento.estudanteId}/etapas/pei?peiId=${documento.id}`);
+      }
+      return;
+    }
     if (documento.tipo === "PEA") {
       if (usuario?.perfil === "PROFESSOR" && usuario.perfilId === documento.professorId && canAccess(usuario, "pedagogico.editar") && !documento.arquivado) {
         navigate(`${routes.cadastroPeaProfessor}?peaId=${documento.id}`);
