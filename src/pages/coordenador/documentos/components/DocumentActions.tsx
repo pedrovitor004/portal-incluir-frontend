@@ -9,6 +9,7 @@ export default function DocumentActions({ documento, onView, onEdit, onAction, b
   const gerenciar = !!usuario && canAccess(usuario, "documentos.gerenciar");
   const podeEditar = !!usuario && (documento.tipo === "PEA"
     ? usuario.perfil === "PROFESSOR" && usuario.perfilId === documento.professorId && canAccess(usuario, "pedagogico.editar")
+    : documento.tipo === "ANAMNESE" ? canAccess(usuario, "anamnese") && canAccess(usuario, "estudantes.editar")
     : canAccess(usuario, documento.tipo === "PEI" ? "pei.editar" : "planos.gerar"));
   const somenteLeitura = documento.assinado || documento.arquivado;
   const classes = "inline-flex h-9 w-9 items-center justify-center rounded-xl ring-1 transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0 motion-reduce:transform-none";

@@ -17,7 +17,7 @@ export default function DocumentTypeCards({ selecionado, onSelect, consulta, pro
   return <section aria-label="Filtrar documentos por tipo" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
     {tiposDocumentoPorPerfil(professor).map(card => {
       const ativo = selecionado === card.tipo;
-      const suportado = card.tipo === "TODOS" || card.tipo === "PEI" || card.tipo === "PLANO_ACAO" || (professor && card.tipo === "PEA");
+      const suportado = card.tipo === "TODOS" || card.tipo === "ANAMNESE" || card.tipo === "PEI" || card.tipo === "PLANO_ACAO" || (professor && card.tipo === "PEA");
       const disponivel = consulta && (card.tipo === "TODOS" ? consulta.tiposDisponiveis.length > 0 : consulta.tiposDisponiveis.includes(card.tipo));
       const quantidade = disponivel ? consulta.documentos.filter(d => card.tipo === "TODOS" || d.tipo === card.tipo).length : null;
       const estilo = estilos[card.tipo];
