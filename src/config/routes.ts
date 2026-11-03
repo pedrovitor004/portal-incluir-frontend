@@ -8,6 +8,7 @@ export const routes = {
   lgpd: "/recursos/lgpd",
   legislacao: "/recursos/legislacao",
   dashboardProfessor: "/professor/dashboard",
+  cadastroPeaProfessor: "/professor/adaptacoes",
   dashboardEquipeMultidisciplinar: "/equipe/dashboard",
   dashboardCoordenador: "/coordenador/dashboard",
   estudantesCoordenador: "/coordenador/estudantes",

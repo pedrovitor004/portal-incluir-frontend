@@ -2,6 +2,7 @@
 export const endpoints = {
   documentos: {
     pei: "/planos-educacionais",
+    adaptacoesPedagogicas: "/adaptacoes-pedagogicas",
     planoAcao: "/planos-acao",
   },
   auth: {

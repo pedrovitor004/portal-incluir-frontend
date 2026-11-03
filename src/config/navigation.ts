@@ -46,6 +46,7 @@ const navigation: NavigationItem[] = [
 export function getNavigation(conta: PerfilUsuario | Usuario): NavigationItem[] {
   const perfil = typeof conta === "string" ? conta : conta.perfil;
   const visible = (item: NavigationItem) =>
+    (perfil !== "PROFESSOR" || item.slug !== "adaptacoes" || canAccess(conta, "pedagogico.editar")) &&
     (!item.profiles || item.profiles.includes(perfil)) &&
     (!item.permission || canAccess(conta, item.permission)) &&
     (!item.permissionsAny || item.permissionsAny.some(permission => canAccess(conta, permission)));
