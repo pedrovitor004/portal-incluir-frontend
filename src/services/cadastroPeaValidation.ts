@@ -1,6 +1,6 @@
 ﻿import type { Usuario } from "../types/auth";
 import type { EstudanteResponse } from "../types/estudante";
-import type { AdaptacaoPedagogicaConteudo, AdaptacaoPedagogicaRequest } from "../types/adaptacaoPedagogica";
+import type { AdaptacaoPedagogicaConteudo, AdaptacaoPedagogicaRequest, AdaptacaoPedagogicaResponse } from "../types/adaptacaoPedagogica";
 import { canAccess } from "../config/access";
 
 export const camposPea = [
@@ -14,6 +14,18 @@ export const camposPea = [
   { name: "bibliografiaBasica", label: "Bibliografia básica", limite: 5000 },
   { name: "bibliografiaComplementar", label: "Bibliografia complementar", limite: 5000 },
 ] as const;
+
+export function exigirEdicaoPea(pea: AdaptacaoPedagogicaResponse, usuario: Usuario | null) {
+  if (!usuario || usuario.perfil !== "PROFESSOR" || !canAccess(usuario, "pedagogico.editar") || pea.professorId !== usuario.perfilId) {
+    throw new Error("Você não tem permissão para editar este PEA.");
+  }
+  if (pea.arquivado) throw new Error("Este PEA está arquivado e disponível somente para consulta.");
+}
+
+export function prepararEdicaoPea(conteudo: AdaptacaoPedagogicaConteudo, pea: AdaptacaoPedagogicaResponse, estudantes: EstudanteResponse[], usuario: Usuario | null) {
+  exigirEdicaoPea(pea, usuario);
+  return prepararCadastroPea(conteudo, pea.estudanteId, estudantes, usuario);
+}
 
 export function prepararCadastroPea(
   conteudo: AdaptacaoPedagogicaConteudo,

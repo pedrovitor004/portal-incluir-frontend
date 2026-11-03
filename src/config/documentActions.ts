@@ -1,5 +1,7 @@
 import type { Documento } from "../types/documento";
 import type { ColorTheme } from "./uiThemes";
+import type { Usuario } from "../types/auth";
+import { canAccess } from "./access";
 export type AcaoDocumento = "excluir" | "arquivar" | "desarquivar";
 export const acoesDocumento: Record<AcaoDocumento, { titulo: string; botao: string; progresso: string; sucesso: string; descricao: string; tom: ColorTheme; icone: string }> = {
   excluir: { titulo: "Excluir documento", botao: "Excluir", progresso: "Excluindo documento...", sucesso: "Documento excluído com sucesso.", descricao: "O documento será removido. Esta ação não pode ser desfeita pela página.", tom: "red", icone: "M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" },
@@ -12,5 +14,16 @@ export function acaoPermitida(documento: Documento, acao: AcaoDocumento): boolea
     case "arquivar": return !documento.arquivado;
     case "desarquivar": return documento.arquivado;
     case "excluir": return !documento.assinado;
+  }
+}
+
+export function acaoPeaPermitida(documento: Documento, acao: AcaoDocumento, usuario: Usuario | null): boolean {
+  if (documento.tipo !== "PEA" || usuario?.perfil !== "PROFESSOR"
+    || usuario.perfilId !== documento.professorId || !canAccess(usuario, "pedagogico.editar")) return false;
+  switch (acao) {
+    case "arquivar": return !documento.arquivado;
+    case "desarquivar": return documento.arquivado;
+    case "excluir": return true;
+    default: return false;
   }
 }
