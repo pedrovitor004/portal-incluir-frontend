@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import axios from "axios";
 import Button from "../../../../components/common/Button";
 import LoadingState from "../../../../components/common/LoadingState";
@@ -34,10 +34,12 @@ type Props = {
   onSaved: (pei: PlanoEducacionalResponse) => void;
   onCancel: () => void;
   onBusyChange: (busy: boolean) => void;
+  areaSolicitacoes?: ReactNode;
 };
 
-export default function PeiForm({ estudante, peiId, onSaved, onCancel, onBusyChange }: Props) {
+export default function PeiForm({ estudante, peiId, onSaved, onCancel, onBusyChange, areaSolicitacoes }: Props) {
   const { usuario } = useAuth();
+  const formularioId = useId();
   const [conteudo, setConteudo] = useState(vazio);
   const [original, setOriginal] = useState<PlanoEducacionalResponse | null>(null);
   const [carregando, setCarregando] = useState(peiId !== null);
@@ -95,7 +97,7 @@ export default function PeiForm({ estudante, peiId, onSaved, onCancel, onBusyCha
     {erroCarga && <div role="alert" className="space-y-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"><p>{erroCarga}</p><Button variant="secondary" onClick={() => { setErroCarga(""); setCarregando(true); setTentativa(v => v + 1); }}>Tentar novamente</Button></div>}
     {erro && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{erro}</p>}
     {!permitido && <p role="status" className="text-sm text-slate-600">Este documento não está disponível para edição pela sua conta ou o histórico está concluído.</p>}
-    <form onSubmit={event => void salvar(event)} aria-busy={salvando}>
+    <form id={formularioId} onSubmit={event => void salvar(event)} aria-busy={salvando}>
       <fieldset disabled={!permitido || carregando || salvando || !!erroCarga} className="min-w-0 space-y-6">
         <legend className="sr-only">Conteúdo do PEI</legend>
         <section className={secao}>
@@ -107,9 +109,9 @@ export default function PeiForm({ estudante, peiId, onSaved, onCancel, onBusyCha
           <h3 className="text-lg font-semibold text-slate-900">{index + 2}. {campo.label}</h3>
           <label className="block text-sm font-medium text-slate-700" htmlFor={`pei-${campo.name}`}>{campo.label} *<textarea id={`pei-${campo.name}`} name={campo.name} value={conteudo[campo.name]} onChange={e => setConteudo(atual => ({ ...atual, [campo.name]: e.target.value }))} required maxLength={campo.limite} rows={5} className={`${campoClass} min-h-[120px] resize-y`} aria-describedby={`pei-${campo.name}-limite`} /><span id={`pei-${campo.name}-limite`} className="mt-1 block text-xs font-normal text-slate-500">{conteudo[campo.name].length}/{campo.limite} caracteres</span></label>
         </section>)}
-        <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row"><Button variant="secondary" onClick={onCancel}>Voltar à consulta</Button><Button type="submit">{salvando ? "Salvando..." : edicao ? "Salvar alterações" : "Salvar PEI"}</Button></div>
       </fieldset>
     </form>
-    {(erroCarga || !permitido) && <Button variant="secondary" onClick={onCancel}>Voltar à consulta</Button>}
+    {areaSolicitacoes}
+    <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row"><Button variant="secondary" disabled={salvando} onClick={onCancel}>Voltar à consulta</Button><Button type="submit" form={formularioId} disabled={!permitido || carregando || salvando || !!erroCarga}>{salvando ? "Salvando..." : edicao ? "Salvar alterações" : "Salvar PEI"}</Button></div>
   </section>;
 }

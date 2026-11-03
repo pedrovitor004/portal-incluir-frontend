@@ -1,3 +1,5 @@
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 
@@ -53,6 +55,16 @@ try {
   http.defaults.adapter = async () => { throw new Error('Falha simulada'); };
   await assert.rejects(service.atualizar(78, edicao), /Falha simulada/);
   assert.deepEqual(conteudo, snapshot);
+  const {default:PeiForm}=await server.ssrLoadModule('/src/pages/coordenador/estudantes/components/PeiForm.tsx');
+  const {AuthContext}=await server.ssrLoadModule('/src/contexts/AuthContext.ts');
+  const html=renderToStaticMarkup(React.createElement(AuthContext.Provider,{value:{usuario}},React.createElement(PeiForm,{estudante:{...estudante,nomeCompleto:'Estudante',matricula:'2026001'},peiId:null,areaSolicitacoes:React.createElement('aside',{'data-area':'solicitacoes'},'Solicitações de PEA'),onSaved(){},onCancel(){},onBusyChange(){}})));
+  const formId=/<form id="([^"]+)"/.exec(html)[1];
+  assert.equal(/<button[^>]*form="([^"]+)"[^>]*>Salvar PEI/.exec(html)[1],formId);
+  assert.equal((html.match(/<form /g)??[]).length,1);
+  assert.equal((html.match(/required=""/g)??[]).length,camposPei.length);
+  assert.equal(/novalidate/i.test(html),false);
+  assert.ok(html.indexOf('</form>')<html.indexOf('data-area="solicitacoes"'));
+  assert.ok(html.indexOf('data-area="solicitacoes"')<html.indexOf('Salvar PEI'));
   console.log('PEI: campos, limites, permissões, IDs, múltiplos registros e contratos GET/POST/PUT verificados com API simulada.');
 } finally {
   await server.close();

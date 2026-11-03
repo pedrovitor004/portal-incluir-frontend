@@ -1,3 +1,5 @@
+import SolicitacoesPeaPanel from "./components/SolicitacoesPeaPanel";
+import { podeGerenciarSolicitacoes } from "../../../services/solicitacaoPeaModel";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useAuth } from "../../../hooks/useAuth";
@@ -95,6 +97,9 @@ function Conteudo({ id, etapa }: { id: number; etapa: "pei" | "rai" }) {
     }
     void carregar(); return () => controller.abort();
   }, [id, etapa, coordenador]);
+  const exibirFormularioPei = !carregando && !erro && estudante !== null && formularioAberto;
+  const painelSolicitacoes = !carregando && estudante && etapa === "pei" && podeGerenciarSolicitacoes(usuario)
+    ? <SolicitacoesPeaPanel key={`${id}-${usuario?.id}`} estudanteId={id} somenteLeitura={estudante.concluido || !estudante.ativo} /> : null;
   return <main className="mx-auto max-w-[1100px] space-y-6 pb-10">
     <header><Link to={`${base}/estudantes/${id}`} className="text-sm font-semibold text-green-800 hover:underline">← Voltar ao perfil do estudante</Link><h1 className="mt-4 text-2xl font-bold text-primary">{etapa === "pei" ? "Plano Educacional Individualizado" : "Relatório de Acompanhamento Individual"}</h1>{estudante && <p className="mt-2 text-sm text-slate-600">{estudante.nomeCompleto} · Matrícula {estudante.matricula}</p>}</header>
     <StudentFlow key={versaoPei} estudanteId={id} atual={etapa} peiRegistrado={etapa === "pei" && !carregando && !erro ? documentos.some(d => !d.arquivado) : undefined} somenteLeitura={estudante?.concluido} />
@@ -106,7 +111,8 @@ function Conteudo({ id, etapa }: { id: number; etapa: "pei" | "rai" }) {
       <div className="mt-5 divide-y divide-slate-100">{documentos.map(d => <div key={d.chave} className="flex flex-wrap items-center justify-between gap-3 py-4"><div><p className="text-sm font-semibold text-slate-800">PEI · {d.periodo}{coordenador && ` · Registro ${d.id}`}</p><p className="mt-1 text-xs text-slate-500">{d.status}</p></div><div className="flex flex-wrap gap-3"><Button variant="secondary" onClick={() => setSelecionado(d)}>Consultar PEI</Button>{podeEditar && <Button variant="secondary" disabled={salvandoPei || !!erro || d.arquivado || estudante.concluido} onClick={() => abrirFormulario(d)}>Editar PEI</Button>}</div></div>)}</div>
       {!documentos.length && !erro && <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum PEI registrado para este estudante.</p>}
     </section>}
-    {!carregando && !erro && estudante && formularioAberto && <PeiForm key={`${id}-${usuario?.id}-${peiId ?? "novo"}`} estudante={estudante} peiId={peiId} onSaved={salvo} onCancel={fecharFormulario} onBusyChange={setSalvandoPei} />}
+    {exibirFormularioPei && estudante && <PeiForm key={`${id}-${usuario?.id}-${peiId ?? "novo"}`} estudante={estudante} peiId={peiId} onSaved={salvo} onCancel={fecharFormulario} onBusyChange={setSalvandoPei} areaSolicitacoes={painelSolicitacoes} />}
+    {!exibirFormularioPei && painelSolicitacoes}
     {!carregando && estudante && etapa === "rai" && <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6"><div><h2 className="font-semibold text-slate-800">Emitir relatório acumulativo</h2><p className="mt-2 text-sm leading-6 text-slate-500">O RAI reúne a anamnese, os planos de ação, os PEIs e as adaptações salvas até a emissão. Você pode gerar uma nova versão conforme o acompanhamento avançar.</p></div><StudentExport estudanteId={id} tipo="rai" /></section>}
     <div className="flex flex-wrap justify-between gap-3"><Link to={`${base}/${etapa === "pei" ? `plano-acao?estudanteId=${id}` : `estudantes/${id}/etapas/pei`}`} onClick={event => { if (salvandoPei) event.preventDefault(); }} aria-disabled={salvandoPei || undefined} className="text-sm font-semibold text-green-800 hover:underline">← {etapa === "pei" ? "Plano de ação" : "PEI"}</Link>{etapa === "pei" && <Button disabled={salvandoPei || encaminhando || carregando || !!erro} onClick={() => void avancar()}>{encaminhando ? "Encaminhando..." : "Continuar para RAI →"}</Button>}</div>
     <Modal open={selecionado !== null} onClose={() => setSelecionado(null)} title="PEI do estudante" size="wide">{selecionado && <DocumentDetails documento={selecionado} />}</Modal>

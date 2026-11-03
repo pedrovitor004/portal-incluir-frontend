@@ -40,6 +40,12 @@ export function prepararCadastroPea(
   const estudante = estudantes.find(item => item.id === estudanteId);
   if (!estudante) throw new Error("Selecione um estudante disponível para seu acompanhamento.");
   if (estudante.concluido) throw new Error("O histórico deste estudante está concluído e não permite novos registros.");
+  const dados = prepararConteudoPea(conteudo);
+  // Cadastro independente: não incluir planoEducacionalId.
+  return { ...dados, estudanteId, professorId: usuario.perfilId };
+}
+
+export function prepararConteudoPea(conteudo: AdaptacaoPedagogicaConteudo): AdaptacaoPedagogicaConteudo {
   const dados = { ...conteudo };
   for (const campo of camposPea) {
     const valor = conteudo[campo.name].trim();
@@ -47,6 +53,5 @@ export function prepararCadastroPea(
     if (conteudo[campo.name].length > campo.limite) throw new Error(`${campo.label} deve ter no máximo ${campo.limite} caracteres.`);
     dados[campo.name] = valor;
   }
-  // Cadastro independente: não incluir planoEducacionalId.
-  return { ...dados, estudanteId, professorId: usuario.perfilId };
+  return dados;
 }

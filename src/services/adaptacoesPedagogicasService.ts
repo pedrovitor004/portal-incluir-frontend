@@ -19,6 +19,10 @@ export const adaptacoesPedagogicasService = {
     if (!Number.isSafeInteger(professorId) || professorId <= 0) throw new Error("Professor não identificado.");
     return (await http.get<AdaptacaoPedagogicaResponse[]>(`${endpoints.documentos.adaptacoesPedagogicas}/professor/${professorId}`, { signal })).data;
   },
+  async listarPorEstudanteEProfessor(estudanteId: number, professorId: number, signal?: AbortSignal): Promise<AdaptacaoPedagogicaResponse[]> {
+    if (![estudanteId, professorId].every(id => Number.isSafeInteger(id) && id > 0)) throw new Error("Estudante ou professor não identificado.");
+    return (await http.get<AdaptacaoPedagogicaResponse[]>(`${endpoints.documentos.adaptacoesPedagogicas}/estudante/${estudanteId}/professor/${professorId}`, { signal })).data;
+  },
   async buscarPorId(id: number, signal?: AbortSignal): Promise<AdaptacaoPedagogicaResponse> {
     return (await http.get<AdaptacaoPedagogicaResponse>(`${endpoints.documentos.adaptacoesPedagogicas}/${id}`, { signal })).data;
   },
