@@ -28,6 +28,7 @@ import PlanoAcaoPage from "../../pages/coordenador/estudantes/PlanoAcaoPage";
 const SolicitacoesPeaProfessorPage = lazy(() => import("../../pages/professor/solicitacoes/SolicitacoesPeaProfessorPage"));
 const ResponderSolicitacaoPeaPage = lazy(() => import("../../pages/professor/solicitacoes/ResponderSolicitacaoPeaPage"));
 const CadastroPeaPage = lazy(() => import("../../pages/professor/adaptacoes/CadastroPeaPage"));
+const ConteudoAcademicoPage = lazy(() => import("../../pages/professor/conteudo/ConteudoAcademicoPage"));
 const RelatoriosPage = lazy(() => import("../../pages/coordenador/relatorios/RelatoriosPage"));
 const DocumentosPage = lazy(() => import("../../pages/coordenador/documentos/DocumentosPage"));
 const AuditoriasPage = lazy(() => import("../../pages/coordenador/auditorias/AuditoriasPage"));
@@ -83,6 +84,7 @@ export default function AppRoutes() {
       <Route path={routes.solicitacoesPeaProfessor} element={<PerfilRoute perfil="PROFESSOR" permission="pedagogico.consultar"><Suspense fallback={<LoadingState />}><SolicitacoesPeaProfessorPage /></Suspense></PerfilRoute>} />
       <Route path={`${routes.solicitacoesPeaProfessor}/:id`} element={<PerfilRoute perfil="PROFESSOR" permission="pedagogico.consultar"><Suspense fallback={<LoadingState />}><ResponderSolicitacaoPeaPage /></Suspense></PerfilRoute>} />
       <Route path={routes.cadastroPeaProfessor} element={<PerfilRoute perfil="PROFESSOR" permission="pedagogico.editar"><Suspense fallback={<LoadingState />}><CadastroPeaPage /></Suspense></PerfilRoute>} />
+      <Route path={routes.conteudoAcademicoProfessor} element={<PerfilRoute perfil="PROFESSOR" permission="academico.gerar"><Suspense fallback={<LoadingState />}><ConteudoAcademicoPage /></Suspense></PerfilRoute>} />
       <Route path="/coordenador/adaptacoes" element={<PerfilRoute perfil="COORDENADOR" permission="pedagogico.consultar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="adaptacoes" visao="adaptacoes" /></Suspense></PerfilRoute>} />
       <Route path="/coordenador/conteudo-academico" element={<PerfilRoute perfil="COORDENADOR" permission="academico.gerar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="conteudo" visao="conteudo" /></Suspense></PerfilRoute>} />
       <Route path="/coordenador/atendimentos" element={<PerfilRoute perfil="COORDENADOR" permission="suporte.consultar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="atendimentos" visao="atendimentos" /></Suspense></PerfilRoute>} />
