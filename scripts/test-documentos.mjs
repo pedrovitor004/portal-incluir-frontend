@@ -23,6 +23,60 @@ try {
   assert.equal(pei.detalhes.find(d => d.titulo === "Possui comorbidade")?.valor, "Não", "Respostas negativas devem ser preservadas na visualização");
 
   const get = http.get;
+  const { gerarArquivoDocumento } = await server.ssrLoadModule("/src/services/exportarDocumentoPreenchido.ts");
+  const { mapearPea } = await server.ssrLoadModule("/src/services/documentosService.ts");
+  const { unzipSync, strFromU8 } = await import("fflate");
+  const longo = `${"Texto longo com quebra de linha.\n".repeat(150)}FIM_DO_CONTEUDO`;
+  const documentosExportacao = [
+    mapearDocumento({ ...plano, coordenadorNome: "Coordenador de teste", semestreAno: "2026.2", historico: longo,
+      necessidadesEspecificas: "Necessidades registradas", conhecimentosHabilidadesInteresses: "Habilidades registradas",
+      dificuldadesApresentadas: "Dificuldades registradas", propostasAdaptacoesCurriculares: "Propostas registradas" }, "PEI"),
+    mapearPea({ ...plano, professorId: 3, professorNome: "Professor de teste", semestreAno: "2026.2",
+      componenteCurricular: "Componente de teste", objetivoGeral: longo, objetivosEspecificos: "Objetivos registrados",
+      conteudosProgramaticos: "Conteudos registrados", metodologia: "Metodologia registrada", avaliacao: "Avaliacao registrada",
+      bibliografiaBasica: "Bibliografia basica registrada", bibliografiaComplementar: "Bibliografia complementar registrada",
+      dataCriacao: "2026-11-09T10:00:00", dataAtualizacao: "2026-11-09T11:00:00" }),
+  ];
+  try {
+    http.get = async () => { throw new Error("Exportacao nao deve consultar outros dados do estudante"); };
+    for (const documento of documentosExportacao) {
+      const word = await gerarArquivoDocumento(documento, "docx");
+      const pacote = unzipSync(new Uint8Array(await word.arrayBuffer()));
+      const xml = strFromU8(pacote["word/document.xml"]);
+      for (const campo of documento.detalhes) {
+        for (const linha of campo.valor.split(/\r?\n/)) assert.ok(xml.includes(linha), `${documento.tipo}: Word deve incluir todo o conteudo`);
+      }
+      assert.ok(xml.includes(documento.estudanteNome));
+      assert.ok(xml.includes(documento.periodo));
+      const pdf = await gerarArquivoDocumento(documento, "pdf");
+      const textoPdf = Buffer.from(await pdf.arrayBuffer()).toString("latin1");
+      assert.ok(textoPdf.startsWith("%PDF-"));
+      const assinaturas = [
+        "Assinatura do Setor Pedagógico (responsável):", "Assinatura da Assistência Estudantil (responsável):",
+        "Assinatura do Docente:", "Assinatura da CLAI:", "Assinatura do(a) Coordenador(a) de Curso:",
+        "Assinatura do Estudante ou Responsável:",
+      ];
+      assert.equal(xml.includes("ANEXO III"), documento.tipo === "PEI");
+      assert.equal(textoPdf.includes("ANEXO III"), documento.tipo === "PEI");
+      for (const assinatura of assinaturas) {
+        assert.equal(xml.includes(assinatura), documento.tipo === "PEI");
+        const textoEscapado = assinatura.replace(/[()]/g, "\\$&");
+        assert.equal(textoPdf.includes(textoEscapado), documento.tipo === "PEI");
+      }
+      if (documento.tipo === "PEI") {
+        assert.ok(xml.indexOf("ANEXO III") < xml.indexOf("PLANO EDUCACIONAL"));
+        assert.ok(xml.indexOf(assinaturas[0]) > xml.indexOf("Propostas registradas"));
+        assert.ok(xml.includes('w:leader="underscore"'), "Word deve conter linhas para assinatura");
+      }
+      assert.ok(textoPdf.includes("FIM_DO_CONTEUDO"), "PDF nao deve cortar textos longos");
+      assert.ok((textoPdf.match(/\/Type \/Page\b/g) || []).length > 1, "Textos longos devem ocupar varias paginas");
+      for (const campo of documento.detalhes.filter(campo => !campo.valor.includes("\n"))) {
+        for (const palavra of campo.valor.split(/\s+/)) assert.ok(textoPdf.includes(palavra), `${documento.tipo}: PDF deve incluir o campo ${campo.titulo}`);
+      }
+    }
+    await assert.rejects(() => gerarArquivoDocumento(anamnese, "pdf"));
+    console.log("PEA e PEI: PDF multipagina e Word preservam campos e textos longos sem novas consultas HTTP.");
+  } finally { http.get = get; }
   const del = http.delete;
   const post = http.post;
   try {

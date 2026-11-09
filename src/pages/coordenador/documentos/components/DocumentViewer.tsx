@@ -6,6 +6,7 @@ import { mensagemErro } from "../../../../services/apiError";
 import type { Documento, TipoDocumento } from "../../../../types/documento";
 import DocumentDetails from "./DocumentDetails";
 import StudentExport from "../../estudantes/components/StudentExport";
+import DocumentExport from "./DocumentExport";
 
 const tipos: TipoDocumento[] = ["ANAMNESE", "PEI", "PLANO_ACAO", "PEA", "RAI"];
 
@@ -30,6 +31,7 @@ export default function DocumentViewer({ tipo, id, onBack }: { tipo: string; id:
     {erro ? <div role="alert" className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-5"><p>{erro}</p><Button onClick={() => { setErro(""); setDocumento(null); setTentativa(v => v + 1); }}>Tentar novamente</Button></div> : !documento ? <LoadingState label="Carregando o documento preenchido..." /> : <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10 print:border-0 print:p-0 print:shadow-none">
       <h2 className="mb-8 text-center text-xl font-bold uppercase text-slate-900">{documento.nome}</h2>
       <DocumentDetails documento={documento} />
+      {(documento.tipo === "PEA" || documento.tipo === "PEI") && <div className="mt-8 print:hidden"><DocumentExport key={documento.chave} documento={documento} /></div>}
       {(documento.tipo === "ANAMNESE" || documento.tipo === "PLANO_ACAO") && <div className="mt-8 print:hidden"><StudentExport estudanteId={documento.estudanteId} tipo={documento.tipo === "ANAMNESE" ? "anamnese" : "plano"} planoId={documento.tipo === "PLANO_ACAO" ? documento.id : undefined} /></div>}
     </article>}
   </div>;
