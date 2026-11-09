@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../../../hooks/useAuth";
 import { useConsultaPea } from "../../../hooks/useConsultaPea";
 import { solicitacoesPeaService as api } from "../../../services/solicitacoesPeaService";
@@ -27,9 +27,9 @@ function HistoricoPea({ estudanteId, professorId, entregaId }: { estudanteId: nu
 }
 function Conteudo({ id }: { id: number }) {
   const { usuario } = useAuth();
+  const navigate = useNavigate();
   const consultar = useCallback((signal: AbortSignal) => api.contexto(id, signal), [id]);
   const consulta = useConsultaPea(consultar);
-  const [peaId, setPeaId] = useState<number | null>(null);
   const solicitacao = consulta.dados;
   const destinatario = solicitacao ? meuDestinatario(solicitacao, usuario) : undefined;
   return <main className="mx-auto max-w-[1100px] space-y-6 pb-10">
@@ -37,13 +37,12 @@ function Conteudo({ id }: { id: number }) {
     <Button variant="secondary" disabled={consulta.carregando} onClick={consulta.recarregar}>Atualizar situação</Button>
     <ConsultaPeaState {...consulta} onRetry={consulta.recarregar} />
     {!consulta.carregando && !consulta.erro && solicitacao && <>
-      <SolicitacaoPeaCard solicitacao={solicitacao} onViewPea={setPeaId} />
+      <SolicitacaoPeaCard solicitacao={solicitacao} onViewPea={peaId => navigate(`/professor/documentos?documento=PEA&id=${peaId}`)} />
       {destinatario?.situacao === "PENDENTE" && usuario && canAccess(usuario,"pedagogico.editar") && canAccess(usuario,"pedagogico.consultar")
         ? <Link to={`${routes.cadastroPeaProfessor}?solicitacaoId=${solicitacao.id}`} className="inline-flex min-h-11 items-center rounded-lg bg-green-800 px-4 py-2 font-semibold text-white">Preencher PEA</Link>
         : <p role="status" className="rounded-xl bg-slate-50 p-4 text-sm">{destinatario?.situacao === "CANCELADO" ? "Esta solicitação foi cancelada e não aceita entrega." : destinatario?.situacao === "ENTREGUE" ? "Seu PEA já foi entregue. Utilize Consultar PEA entregue para visualizar o documento." : "Esta solicitação não está disponível para sua entrega com as permissões atuais."}</p>}
       {destinatario && usuario?.perfil === "PROFESSOR" && canAccess(usuario,"pedagogico.consultar") && <HistoricoPea key={`${solicitacao.estudante.id}-${usuario.perfilId}`} estudanteId={solicitacao.estudante.id} professorId={usuario.perfilId} entregaId={destinatario.peaId} />}
     </>}
-    {peaId !== null && <PeaEntregueModal key={peaId} id={peaId} onClose={() => setPeaId(null)} />}
   </main>;
 }
 export default function ResponderSolicitacaoPeaPage() {
