@@ -38,6 +38,10 @@ export const conteudosAcademicosService = {
     await http.delete(api.porId(id), { params: { versao }, signal });
   },
 
+  async definirFavorito(id: number, versao: number, favorito: boolean, signal?: AbortSignal): Promise<ConteudoAcademicoResponse> {
+    return (await http.put<ConteudoAcademicoResponse>(`${api.porId(id)}/favorito`, null, { params: { versao, favorito }, signal })).data;
+  },
+
   async enviarArquivo(id: number, versao: number, arquivo: File, signal?: AbortSignal): Promise<ConteudoAcademicoResponse> {
     const form = new FormData();
     form.append("arquivo", arquivo);

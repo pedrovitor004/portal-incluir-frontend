@@ -9,6 +9,7 @@ export const routes = {
   legislacao: "/recursos/legislacao",
   dashboardProfessor: "/professor/dashboard",
   cadastroPeaProfessor: "/professor/adaptacoes",
+  conteudoAcademicoProfessor: "/professor/conteudo-academico",
   solicitacoesPeaProfessor: "/professor/documentos/solicitacoes-pea",
   dashboardEquipeMultidisciplinar: "/equipe/dashboard",
   dashboardCoordenador: "/coordenador/dashboard",

@@ -16,6 +16,7 @@ export interface AtualizarConteudoAcademicoRequest extends ConteudoAcademicoRequ
 
 export interface ConteudoAcademicoResponse {
   id: number;
+  favorito: boolean;
   versao: number;
   professorId: number;
   professorNome: string;
