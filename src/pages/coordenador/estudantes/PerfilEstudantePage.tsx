@@ -1,3 +1,4 @@
+import OcorrenciasPage from "../../ocorrencias/OcorrenciasPage";
 import StudentExport from "./components/StudentExport";
 import { montarLinhaDoTempo } from "../../../services/linhaDoTempoEstudante";
 import StudentDocumentGeneration from "./components/StudentDocumentGeneration";
@@ -28,8 +29,9 @@ import StudentEmailModal from "./components/StudentEmailModal";
 import { emailValido } from "../../../services/emailEstudanteService";
 import { dataPerfil } from "./profilePresentation";
 
-type AbaPerfil = "plano" | "dados" | "diagnostico" | "adaptacoes" | "historico" | "documentos" | "profissionais";
+type AbaPerfil = "ocorrencias" | "plano" | "dados" | "diagnostico" | "adaptacoes" | "historico" | "documentos" | "profissionais";
 const abas: { id: AbaPerfil; label: string; icone: string }[] = [
+  { id: "ocorrencias", label: "Ocorrências", icone: "atividade" },
   { id: "plano", label: "Acompanhamento", icone: "plano" }, { id: "dados", label: "Dados pessoais", icone: "usuario" },
   { id: "diagnostico", label: "Diagnóstico", icone: "atividade" }, { id: "adaptacoes", label: "Adaptações", icone: "adaptacao" },
   { id: "historico", label: "Histórico", icone: "historico" }, { id: "documentos", label: "Documentos", icone: "documento" },
@@ -45,7 +47,7 @@ function StudentProfile({ id }: { id: number }) {
   const { usuario } = useAuth();
   const basePath = accessProfiles[usuario?.perfil ?? "COORDENADOR"].basePath;
   const [dados, setDados] = useState<DadosPerfilEstudante | null>(null);
-  const [abaAtiva, setAbaAtiva] = useState<AbaPerfil>(params.get("aba") === "documentos" ? "documentos" : "plano");
+  const [abaAtiva, setAbaAtiva] = useState<AbaPerfil>(params.get("aba") === "ocorrencias" ? "ocorrencias" : params.get("aba") === "documentos" ? "documentos" : "plano");
   const [carregando, setCarregando] = useState(true);
   const [confirmando, setConfirmando] = useState(false);
   const [erro, setErro] = useState("");
@@ -173,6 +175,7 @@ function StudentProfile({ id }: { id: number }) {
         )}
       {abaAtiva === "adaptacoes" && <section className="overflow-hidden rounded-2xl border border-[#dce5dc] bg-white"><div className="p-5"><h2 className="font-bold text-slate-800">Adaptações pedagógicas</h2><p className="mt-1 text-xs text-slate-500">Registros por componente curricular e professor, incluindo adaptações arquivadas. Abra um registro para consultar os detalhes.</p>{dados.falhas.adaptacoes && <p className="mt-2 text-sm text-amber-800">{dados.falhas.adaptacoes}</p>}</div>{!dados.falhas.adaptacoes && <StudentAdaptations adaptacoes={dados.adaptacoes} onView={setAdaptacao} />}</section>}
       {abaAtiva === "historico" && <>{filtroAdaptacao !== null && <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-green-100 bg-green-50 p-3 text-sm text-green-900"><span>Mostrando as alterações da adaptação selecionada.</span><button className="min-h-9 font-semibold underline" onClick={() => setFiltroAdaptacao(null)}>Ver todo o histórico do estudante</button></div>}{dados.falhas.historico ? <ProfileSection titulo="Histórico do estudante"><p className="text-sm text-slate-500">{dados.falhas.historico}</p></ProfileSection> : <AuditoriasTable registros={historico} carregando={carregando} confirmando={confirmando} onView={setRevisao} onRefresh={() => void atualizar()} filtroRapido={null} />}</>}
+      {abaAtiva === "ocorrencias" && <OcorrenciasPage estudanteId={id} />}
       {abaAtiva === "documentos" && <section className="overflow-hidden rounded-2xl border border-[#dce5dc] bg-white"><div className="p-5"><h2 className="font-bold text-slate-800">Documentos do estudante</h2><p className="mt-1 text-xs text-slate-500">Planos de Ação e PEIs registrados, incluindo documentos arquivados. Os dados da anamnese estão nas abas Dados pessoais e Diagnóstico.</p><p className="mt-2 text-xs text-slate-400">O RAI reúne os registros disponíveis na data da emissão. Documentos arquivados permanecem disponíveis para consulta.</p></div>{!(dados.falhas.planos && dados.falhas.peis) && <StudentDocuments documentos={dados.documentos} onView={setDocumento} />}</section>}
     </div>
     {atualizadoEm && <p className="text-right text-[11px] text-slate-400">Última consulta: {atualizadoEm.toLocaleString("pt-BR")}</p>}

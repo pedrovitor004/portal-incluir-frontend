@@ -27,7 +27,8 @@ const navigation: NavigationItem[] = [
       { label: "Conteúdo acadêmico", slug: "conteudo-academico", icon: "document", permission: "academico.gerar" },
     ],
   },
-  { label: "Atendimentos", slug: "atendimentos", icon: "clipboard", section: "Equipe multidisciplinar", permissionsAny: ["suporte.consultar", "suporte.registrar"] },
+  { label: "Registrar ocorrência", slug: "ocorrencias/nova", icon: "clipboard", section: "Equipe multidisciplinar", profiles: ["EQUIPE_MULTIDISCIPLINAR"], permission: "suporte.registrar" },
+  { label: "Ocorrências", slug: "ocorrencias", icon: "clipboard", section: "Equipe multidisciplinar", permission: "estudantes.consultar" },
   { label: "Responsáveis pelo acompanhamento", slug: "responsaveis", icon: "users", section: "Equipe multidisciplinar", profiles: ["COORDENADOR"], permission: "estudantes.vincular" },
   { label: "Solicitações de PEA", slug: "documentos/solicitacoes-pea", icon: "document", profiles: ["PROFESSOR"], permission: "pedagogico.consultar" },
   { label: "Documentos", slug: "documentos", icon: "document", permission: "documentos" },
@@ -48,6 +49,7 @@ export function getNavigation(conta: PerfilUsuario | Usuario): NavigationItem[] 
   const perfil = typeof conta === "string" ? conta : conta.perfil;
   const visible = (item: NavigationItem) =>
     (perfil !== "PROFESSOR" || item.slug !== "adaptacoes" || canAccess(conta, "pedagogico.editar")) &&
+    (perfil !== "EQUIPE_MULTIDISCIPLINAR" || item.slug !== "relatorios") &&
     (!item.profiles || item.profiles.includes(perfil)) &&
     (!item.permission || canAccess(conta, item.permission)) &&
     (!item.permissionsAny || item.permissionsAny.some(permission => canAccess(conta, permission)));
@@ -61,6 +63,7 @@ export function getNavigation(conta: PerfilUsuario | Usuario): NavigationItem[] 
   return items.filter(item => visible(item) && (!item.groupOnly || item.children?.some(visible)))
     .map(item => ({
       ...item,
+      section: perfil === "COORDENADOR" ? item.section : undefined,
       label: item.slug === "estudantes" ? estudantesLabel : item.label,
       children: item.children?.filter(visible),
     }));

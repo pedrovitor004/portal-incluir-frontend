@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+import { canAccess } from "../../config/access";
 import { useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import InstitutionalResources from "../../components/common/InstitutionalResources";
@@ -14,6 +16,7 @@ export default function DashboardEquipeMultidisciplinar() {
       <h2 className="text-lg font-semibold text-primary">Olá, {usuario?.nome}!</h2>
       <p className="mt-2 text-sm leading-relaxed text-slate-600">Este é o seu espaço no Portal Incluir. Use o menu lateral para se orientar pelas áreas do seu perfil.</p>
     </section>
+    {usuario && canAccess(usuario, "suporte.registrar") && <div><Link to="/equipe/ocorrencias/nova" className="inline-flex min-h-12 items-center justify-center gap-3 rounded-xl bg-primary px-5 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-green-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M9 5H5v16h14V5h-4M9 3h6v4H9zM8 12h8M8 16h5" /></svg>Registrar ocorrência</Link></div>}
     <DashboardSummary />
     <RecentNotifications />
     <InstitutionalResources />

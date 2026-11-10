@@ -1,3 +1,6 @@
+import { Link } from "react-router";
+import { useAuth } from "../../../hooks/useAuth";
+import { accessProfiles } from "../../../config/access";
 import ReportConfiguration from "./components/ReportConfiguration";
 import { confirmarRelatorio } from "../../../services/reportConfirmation";
 import ReportIcon from "./components/ReportIcon";
@@ -16,6 +19,7 @@ import ReportCharts from "./components/ReportCharts";
 import Modal from "../../../components/common/Modal";
 import ReportPreview from "./components/ReportPreview";
 export default function RelatoriosPage() {
+  const { usuario } = useAuth();
   const { base, setBase, erro, carregando, recarregar } = useRelatorios();
   const [visualizacao, setVisualizacao] = useState<"tabela" | "graficos">("tabela");
   const [configurando, setConfigurando] = useState(false);
@@ -58,6 +62,7 @@ export default function RelatoriosPage() {
     setTitulo(id === "panorama" ? "Estudantes por curso" : "Estudantes com documentos");
   }
   return <div className="mx-auto w-full max-w-[1600px] space-y-6 pb-6">
+    <div className="flex justify-end"><Link className="inline-flex min-h-11 items-center rounded-xl border border-green-200 bg-white px-4 text-sm font-semibold text-primary" to={`${accessProfiles[usuario?.perfil ?? "COORDENADOR"].basePath}/ocorrencias`}>Relatórios de ocorrências</Link></div>
     <header><h1 data-page-title className="text-2xl font-bold leading-tight text-primary sm:text-[28px]">Relatórios</h1><p className="mt-1 text-sm text-slate-500">Consulte os dados dos estudantes e gere relatórios para a coordenação.</p></header>
     <ReportFilters base={base} filtros={filtros} onChange={setFiltros} modelo={modelo} onModelo={selecionarModelo} disabled={bloqueado || !base} />
     {erro && <div role="alert" className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-800"><p>Não foi possível carregar os dados. {erro}</p><button onClick={() => void atualizarDados()} className="mt-2 min-h-10 font-semibold underline">Tentar novamente</button></div>}

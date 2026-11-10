@@ -16,6 +16,7 @@ try {
     const dados = {
       '/coordenadores/7/dashboard': { estudantesAtivos: 999, planosAtivos: 999, planosArquivados: 999, professoresAtivos: 4, estudantesRecentes: [] },
       '/estudantes': estudantes,
+      '/ocorrencias': [{ id: 1, ocorridaEm: '2020-01-01T10:00:00', arquivoNome: 'foto.jpg' }],
       '/planos-educacionais': peis,
       '/adaptacoes-pedagogicas/professor/7': [{ id: 1, professorId: 7, arquivado: false }, { id: 2, professorId: 7, arquivado: true }, { id: 3, professorId: 8, arquivado: false }],
       '/conteudos-academicos': [{ id: 1, professorId: 7 }, { id: 2, professorId: 8 }],
@@ -37,8 +38,8 @@ try {
   assert.equal(chamadas.length, 0);
   falha = '';
   chamadas = [];
-  assert.deepEqual(valores(await consultarIndicadores({ ...professor, perfil: 'EQUIPE_MULTIDISCIPLINAR' })), [2, 1, 1, 1]);
-  assert.equal(chamadas.length, 1, 'Os indicadores da equipe compartilham uma unica consulta');
+  assert.deepEqual(valores(await consultarIndicadores({ ...professor, perfil: 'EQUIPE_MULTIDISCIPLINAR' })), [2, 0, 1, 1]);
+  assert.equal(chamadas.length, 2, 'A equipe consulta estudantes e ocorrencias uma vez cada');
   falha = '/planos-educacionais';
   await assert.rejects(dashboardService.buscarCoordenador(7));
   console.log('Dashboard: autoria, duplicatas, ativos, arquivados, atualizacao, perfis, permissoes e falhas verificados.');

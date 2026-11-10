@@ -23,7 +23,7 @@ export default function NotificationsList({ dados }: { dados: ReturnType<typeof 
       <p className="mt-1 text-xs text-slate-500">Encaminhado por {n.remetente}</p>
       <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{n.mensagem}</p>
       <time dateTime={n.criadaEm} className="mt-2 block text-xs text-slate-500">{new Date(n.criadaEm).toLocaleString("pt-BR")}</time>
-      <div className="mt-2 flex flex-wrap gap-4">{usuario && <Link to={destinoNotificacao(n, usuario.perfil)} onClick={() => { if (!n.lida) void marcar(n.id); }} className="inline-flex min-h-11 items-center text-sm font-semibold text-green-800 underline">Abrir etapa</Link>}{!n.lida && <button type="button" disabled={lendo.includes(n.id)} onClick={() => void marcar(n.id)} className="min-h-11 text-xs font-semibold text-slate-600 disabled:opacity-50">{lendo.includes(n.id) ? 'Salvando...' : 'Marcar como lida'}</button>}</div>
+      <div className="mt-2 flex flex-wrap gap-4">{usuario && <Link to={destinoNotificacao(n, usuario.perfil)} onClick={() => { if (!n.lida) void marcar(n.id); }} className="inline-flex min-h-11 items-center text-sm font-semibold text-green-800 underline">{n.etapa === "OCORRENCIA" ? "Ver ocorrência" : "Abrir etapa"}</Link>}{!n.lida && <button type="button" disabled={lendo.includes(n.id)} onClick={() => void marcar(n.id)} className="min-h-11 text-xs font-semibold text-slate-600 disabled:opacity-50">{lendo.includes(n.id) ? 'Salvando...' : 'Marcar como lida'}</button>}</div>
     </li>)}</ul>
   </div>;
 }

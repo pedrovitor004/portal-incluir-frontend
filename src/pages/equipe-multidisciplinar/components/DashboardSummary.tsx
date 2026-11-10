@@ -1,13 +1,13 @@
 import Button from "../../../components/common/Button";
 import { useDashboardIndicadores } from "../../../hooks/useDashboardIndicadores";
-import { ChartIcon, ClipboardIcon, StudentsIcon, UsersIcon } from "../../../components/icons/AppIcons";
+import { ChartIcon, ClipboardIcon, StudentsIcon, DocumentIcon } from "../../../components/icons/AppIcons";
 import { colorThemes } from "../../../config/uiThemes";
 
 const cards = [
   { titulo: 'Estudantes acompanhados', descricao: 'Acompanhe os estudantes no contexto da sua atuação profissional.', Icon: StudentsIcon, tom: 'green' },
-  { titulo: 'Estudantes ativos', descricao: 'Estudantes acessíveis ao seu perfil com cadastro ativo.', Icon: ClipboardIcon, tom: 'amber' },
-  { titulo: 'Estudantes inativos', descricao: 'Estudantes acessíveis ao seu perfil com cadastro inativo.', Icon: UsersIcon, tom: 'blue' },
-  { titulo: 'Estudantes com conclusão registrada', descricao: 'Estudantes com data de conclusão registrada; também integram os totais de ativos ou inativos.', Icon: ChartIcon, tom: 'red' }
+  { titulo: 'Ocorrências neste mês', descricao: 'Registros que você fez com data de ocorrência no mês atual.', Icon: ClipboardIcon, tom: 'amber' },
+  { titulo: 'Minhas ocorrências', descricao: 'Todos os registros de ocorrência feitos por você.', Icon: ChartIcon, tom: 'blue' },
+  { titulo: 'Ocorrências com anexo', descricao: 'Seus registros acompanhados de foto ou documento.', Icon: DocumentIcon, tom: 'red' }
 ] as const;
 
 export default function DashboardSummary() {

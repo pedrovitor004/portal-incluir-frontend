@@ -1,3 +1,4 @@
+import { ocorrenciasService } from "./ocorrenciasService";
 import { canAccess } from "../config/access";
 import { http } from "./http";
 import type { EstudanteResponse } from "../types/estudante";
@@ -14,6 +15,13 @@ export async function consultarIndicadores(usuario: Usuario, signal?: AbortSigna
     const lista = registrosUnicos((await http.get<EstudanteResponse[]>("/estudantes", opcoes)).data);
     if (lista.some(e => typeof e.ativo !== "boolean")) throw new Error("Situacao dos estudantes indisponivel.");
     return lista;
+  }
+  if (usuario.perfil === "EQUIPE_MULTIDISCIPLINAR") {
+    const alunos = canAccess(usuario, "estudantes.consultar") ? estudantes().then(lista => lista.length) : Promise.reject(new Error("Sem permissao para consultar estudantes."));
+    const ocorrencias = canAccess(usuario, "suporte.consultar") && canAccess(usuario, "estudantes.consultar")
+      ? ocorrenciasService.listar({}, signal).then(registrosUnicos) : Promise.reject(new Error("Sem permissao para consultar ocorrencias."));
+    const mes = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" }).format(new Date());
+    return Promise.allSettled([alunos, ocorrencias.then(lista => lista.filter(o => o.ocorridaEm.startsWith(mes)).length), ocorrencias.then(lista => lista.length), ocorrencias.then(lista => lista.filter(o => !!o.arquivoNome).length)]);
   }
   if (usuario.perfil !== "PROFESSOR") {
     const lista = canAccess(usuario, "estudantes.consultar") ? estudantes() : Promise.reject(new Error("Sem permissao para consultar estudantes."));
