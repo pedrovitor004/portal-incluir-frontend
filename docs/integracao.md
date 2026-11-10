@@ -35,6 +35,20 @@ Login recebe `{email, senha}`. Cadastro usa `CadastroRequest`, que distingue coo
 
 Erros da API são apresentados por `services/apiError.ts`. A API retorna `message` para validações, duplicidades e credenciais inválidas. Os formulários impedem reenvio durante a requisição e validam os campos obrigatórios.
 
+## Envio de e-mail ao estudante
+
+No perfil do estudante, usuários com as permissões `estudantes.consultar` e `emails.enviar` podem revisar e enviar uma mensagem ao endereço cadastrado. O assunto e o texto vêm preenchidos com um convite geral para conversar sobre o acompanhamento e podem ser editados. O backend envia por SMTP com o Mailtrap, monta uma versão HTML escapando o texto informado e inclui a logo do Portal Incluir como imagem incorporada. Após o servidor SMTP aceitar a mensagem, registra remetente, destinatário, estudante e horário, sem persistir o conteúdo.
+
+Para entregar a mensagem ao endereço real do estudante, configure o **Mailtrap Email Sending** (não o Email Sandbox). No painel do Mailtrap, abra **API/SMTP → Sending Setup**, selecione um domínio remetente verificado, escolha o Transactional Stream e copie as credenciais SMTP. Configure no ambiente que inicia o backend:
+
+- `MAIL_HOST=live.smtp.mailtrap.io`
+- `MAIL_PORT=587`
+- `MAIL_USERNAME=api`
+- `MAIL_PASSWORD` com o API token SMTP mostrado em Sending Setup
+- `MAIL_FROM` com um endereço do domínio verificado, por exemplo `Portal Incluir <nao-responda@seudominio.org>`
+
+Host e porta acima são os padrões do backend; configure as credenciais e o remetente no ambiente e reinicie-o. As credenciais do **Sandbox** (host `sandbox.smtp.mailtrap.io`) só capturam mensagens na caixa de teste e nunca entregam ao destinatário real. Um envio aceito pelo SMTP também não garante que a mensagem chegou à caixa de entrada; acompanhe o status em **Email Logs** do Mailtrap e confira spam/bounces. Nunca coloque credenciais no frontend ou no repositório. A logo `src/main/resources/email/logo-portal.png` é incorporada como imagem inline pelo backend.
+
 ## Etapa atual
 
 Sem JWT e sem autorização no servidor. A identificação em sessionStorage controla apenas a navegação. O coordenador acessa o dashboard; os outros perfis recebem uma página inicial enquanto suas áreas estão em desenvolvimento. O dashboard mostra estudantes/professores ativos da instituição e PEIs do coordenador. Últimos estudantes são ordenados por ID; notificações ainda não estão implementadas.
