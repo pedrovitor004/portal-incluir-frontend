@@ -1,3 +1,5 @@
+import OcorrenciasPage from "../../pages/ocorrencias/OcorrenciasPage";
+import RegistrarOcorrenciaPage from "../../pages/ocorrencias/RegistrarOcorrenciaPage";
 import EtapaDocumentoPage from "../../pages/coordenador/estudantes/EtapaDocumentoPage";
 import CadastroEstudantePage from "../../pages/coordenador/estudantes/CadastroEstudantePage";
 import { lazy, Suspense, type ReactNode } from "react";
@@ -87,9 +89,13 @@ export default function AppRoutes() {
       <Route path={routes.conteudoAcademicoProfessor} element={<PerfilRoute perfil="PROFESSOR" permission="academico.gerar"><Suspense fallback={<LoadingState />}><ConteudoAcademicoPage /></Suspense></PerfilRoute>} />
       <Route path="/coordenador/adaptacoes" element={<PerfilRoute perfil="COORDENADOR" permission="pedagogico.consultar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="adaptacoes" visao="adaptacoes" /></Suspense></PerfilRoute>} />
       <Route path="/coordenador/conteudo-academico" element={<PerfilRoute perfil="COORDENADOR" permission="academico.gerar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="conteudo" visao="conteudo" /></Suspense></PerfilRoute>} />
-      <Route path="/coordenador/atendimentos" element={<PerfilRoute perfil="COORDENADOR" permission="suporte.consultar"><Suspense fallback={<LoadingState />}><GestaoAcompanhamentoPage key="atendimentos" visao="atendimentos" /></Suspense></PerfilRoute>} />
       <Route path="/coordenador/responsaveis" element={<PerfilRoute perfil="COORDENADOR" permission="estudantes.vincular"><Suspense fallback={<LoadingState />}><ResponsaveisPage /></Suspense></PerfilRoute>} />
+      <Route path="/equipe/ocorrencias/nova" element={<PerfilRoute perfil="EQUIPE_MULTIDISCIPLINAR" permission="suporte.registrar"><RegistrarOcorrenciaPage /></PerfilRoute>} />
+      <Route path="/coordenador/atendimentos" element={<Navigate to="/coordenador/ocorrencias" replace />} />
+      <Route path="/equipe/atendimentos" element={<Navigate to="/equipe/ocorrencias/nova" replace />} />
       {(Object.keys(accessProfiles) as PerfilUsuario[]).flatMap(perfil => [
+        <Route key={`${perfil}-ocorrencias`} path={`${accessProfiles[perfil].basePath}/ocorrencias`} element={<PerfilRoute perfil={perfil} permission="estudantes.consultar"><OcorrenciasPage /></PerfilRoute>} />,
+        ...(["COORDENADOR", "ADMINISTRADOR"].includes(perfil) ? [<Route key={`${perfil}-relatorios-ocorrencias`} path={`${accessProfiles[perfil].basePath}/relatorios-ocorrencias`} element={<PerfilRoute perfil={perfil} permission="relatorios"><Navigate to={`${accessProfiles[perfil].basePath}/ocorrencias`} replace /></PerfilRoute>} />] : []),
         <Route key={`${perfil}-usuarios`} path={`${accessProfiles[perfil].basePath}/administracao/usuarios`} element={<PerfilRoute perfil={perfil} permission="usuarios"><Suspense fallback={<LoadingState />}><UsuariosPage /></Suspense></PerfilRoute>} />,
         <Route key={`${perfil}-permissoes`} path={`${accessProfiles[perfil].basePath}/administracao/permissoes`} element={<PerfilRoute perfil={perfil} permission="permissoes"><Suspense fallback={<LoadingState />}><PermissoesPage /></Suspense></PerfilRoute>} />,
         ...(["PROFESSOR", "EQUIPE_MULTIDISCIPLINAR"].includes(perfil) ? [
@@ -99,7 +105,7 @@ export default function AppRoutes() {
         ] : []),
         ...(perfil !== "COORDENADOR" ? [
           <Route key={`${perfil}-documentos`} path={`${accessProfiles[perfil].basePath}/documentos`} element={<PerfilRoute perfil={perfil} permission="documentos"><Suspense fallback={<LoadingState />}><DocumentosPage /></Suspense></PerfilRoute>} />,
-          <Route key={`${perfil}-relatorios`} path={`${accessProfiles[perfil].basePath}/relatorios`} element={<PerfilRoute perfil={perfil} permission="relatorios"><Suspense fallback={<LoadingState />}><RelatoriosPage /></Suspense></PerfilRoute>} />,
+          <Route key={`${perfil}-relatorios`} path={`${accessProfiles[perfil].basePath}/relatorios`} element={<PerfilRoute perfil={perfil} permission="relatorios"><Suspense fallback={<LoadingState />}>{perfil === "EQUIPE_MULTIDISCIPLINAR" ? <Navigate to="/equipe/ocorrencias" replace /> : <RelatoriosPage />}</Suspense></PerfilRoute>} />,
         ] : []),
       ])}
 
