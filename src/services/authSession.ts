@@ -4,6 +4,11 @@ import { mensagemErro } from "./apiError";
 
 type Api = { me(): Promise<Usuario>; login(dados: LoginRequest): Promise<Usuario>; register(dados: CadastroRequest): Promise<SolicitacaoAcesso>; logout(): Promise<void> };
 type Cache = { save(usuario: Usuario): void; clear(): void };
+function chaveUsuario(usuario: Usuario) {
+  return JSON.stringify([usuario.id, usuario.perfilId, usuario.perfil, usuario.nome, usuario.email,
+    usuario.root === true, usuario.administracaoAprovada === true,
+    usuario.permissoes ? [...usuario.permissoes].sort() : null]);
+}
 export function createAuthSession(api: Api, cache: Cache) {
   let estado: { usuario: Usuario | null; carregando: boolean; erroSessao: string } = { usuario: null, carregando: true, erroSessao: "" };
   let versao = 0;
@@ -17,7 +22,14 @@ export function createAuthSession(api: Api, cache: Cache) {
     if (consulta) return consulta;
     const atual = versao;
     consulta = (async () => {
-      try { const usuario = await api.me(); if (atual === versao) { guardar(usuario); publicar({ usuario, carregando: false, erroSessao: "" }); } }
+      try {
+        const usuario = await api.me();
+        if (atual === versao) {
+          const confirmado = estado.usuario && chaveUsuario(estado.usuario) === chaveUsuario(usuario) ? estado.usuario : usuario;
+          guardar(confirmado);
+          if (estado.usuario !== confirmado || estado.carregando || estado.erroSessao) publicar({ usuario: confirmado, carregando: false, erroSessao: "" });
+        }
+      }
       catch (erro) {
         if (atual !== versao) return;
         if (axios.isAxiosError(erro) && [401, 403].includes(erro.response?.status ?? 0)) { guardar(null); publicar({ usuario: null, carregando: false, erroSessao: "" }); }

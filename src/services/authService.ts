@@ -3,7 +3,7 @@ import type { CadastroRequest, LoginRequest, Usuario, SolicitacaoAcesso } from "
 import { http } from "./http";
 
 export const authService = {
-  async me(): Promise<Usuario> { return (await http.get<Usuario>("/auth/me")).data; },
+  async me(): Promise<Usuario> { return (await http.get<Usuario>("/auth/me", { background: true })).data; },
   async login(request: LoginRequest): Promise<Usuario> {
     const { data } = await http.post<Usuario>(endpoints.auth.login, request, { withCredentials: true });
     return data;

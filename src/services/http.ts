@@ -1,10 +1,17 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 import { apiConfig } from "../config/api";
 import { dataConsultation } from "./dataConsultation";
+
+declare module "axios" {
+  interface AxiosRequestConfig {
+    background?: boolean;
+  }
+}
+
 export const http = axios.create({ ...apiConfig, withCredentials: true });
 const consultations = new WeakMap<InternalAxiosRequestConfig, () => void>();
 http.interceptors.request.use(config => {
-  if ((config.method ?? "get").toLowerCase() === "get" && !config.signal?.aborted) {
+  if ((config.method ?? "get").toLowerCase() === "get" && !config.background && !config.signal?.aborted) {
     consultations.set(config, dataConsultation.start());
   }
   return config;

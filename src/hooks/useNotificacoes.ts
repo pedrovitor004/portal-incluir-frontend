@@ -15,7 +15,7 @@ export function useNotificacoes() {
     async function carregar() {
       if (consultando || indisponivel) return; consultando = true;
       try {
-        const [mensagens,pedidos]=await Promise.allSettled([notificacoesService.listar(controller.signal),analise ? solicitacoesAcessoService.listar(false,controller.signal) : Promise.resolve([])]);
+        const [mensagens,pedidos]=await Promise.allSettled([notificacoesService.listar(controller.signal, true),analise ? solicitacoesAcessoService.listar(false,controller.signal, true) : Promise.resolve([])]);
         if (controller.signal.aborted) return;
         const erros=[mensagens,pedidos].filter((r): r is PromiseRejectedResult=>r.status==='rejected');
         indisponivel=erros.some(r=>axios.isAxiosError(r.reason) && r.reason.response?.status===404);

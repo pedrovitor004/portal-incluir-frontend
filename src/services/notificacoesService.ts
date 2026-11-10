@@ -5,7 +5,7 @@ import { accessProfiles } from "../config/access";
 import type { PerfilUsuario } from "../types/auth";
 export type NotificacaoFluxo = { id: number; estudanteId: number; estudanteNome: string; etapa: EtapaFluxo; planoId?: number; remetente: string; mensagem: string; criadaEm: string; lida: boolean };
 export const notificacoesService = {
-  async listar(signal?: AbortSignal) { return (await http.get<NotificacaoFluxo[]>("/notificacoes", { signal })).data; },
+  async listar(signal?: AbortSignal, background = false) { return (await http.get<NotificacaoFluxo[]>("/notificacoes", { signal, background })).data; },
   async ler(id: number) { return (await http.patch<NotificacaoFluxo>(`/notificacoes/${id}/lida`)).data; },
 };
 export function destinoNotificacao(n: NotificacaoFluxo, perfil: PerfilUsuario): string {

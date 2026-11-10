@@ -14,6 +14,14 @@ try {
  assert.equal(s.getSnapshot().usuario,null,'O cache local não pode autenticar a interface');
  assert.equal(s.getSnapshot().carregando,true);
  await s.refresh();assert.equal(s.getSnapshot().usuario.id,2,'A sessão deve ser restaurada pelo servidor, mesmo sem estado local válido');
+ const estavel=s.getSnapshot();let publicacoes=0;const parar=s.subscribe(()=>{publicacoes++;});
+ api.me=async()=>({...user,permissoes:[...user.permissoes]});
+ await s.refresh();await s.refresh();
+ assert.equal(s.getSnapshot(),estavel,'Checagens sem mudancas devem preservar o estado e a referencia do usuario');
+ assert.equal(publicacoes,0,'A consulta periodica nao deve redesenhar a interface quando a sessao permanece igual');
+ api.me=async()=>({...user,nome:'Nome atualizado'});await s.refresh();
+ assert.equal(s.getSnapshot().usuario.nome,'Nome atualizado');assert.equal(publicacoes,1,'Mudancas reais no perfil continuam sendo publicadas');
+ api.me=async()=>user;await s.refresh();parar();
  const antes=meCalls;assert.equal((await s.register({})).status,'PENDENTE');assert.equal(meCalls,antes);assert.equal(s.getSnapshot().usuario.id,2,'Solicitar cadastro não deve criar nem trocar uma sessão');
  api.login=async()=>{throw unauthorized();};await assert.rejects(()=>s.login({}));assert.equal(s.getSnapshot().usuario.id,2,'Credenciais inválidas não devem apagar a sessão já válida');
  api.logout=async()=>{throw Error('Rede indisponível');};await assert.rejects(()=>s.logout());assert.equal(s.getSnapshot().usuario.id,2,'Falha no logout não pode ser apresentada como saída concluída');
