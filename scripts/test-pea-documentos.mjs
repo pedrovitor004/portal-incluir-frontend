@@ -79,9 +79,9 @@ try {
   function renderActions(conta, documento = doc) {
     return renderToStaticMarkup(React.createElement(AuthContext.Provider, { value: { usuario: conta } }, React.createElement(Actions, { documento, onView() {}, onEdit() {}, onAction() {} })));
   }
-  assert.equal((renderActions(usuario).match(/<button/g) ?? []).length, 4);
-  assert.ok(renderActions(usuario).includes('title="Arquivar documento"'));
-  assert.ok(renderActions(usuario, { ...doc, arquivado: true }).includes('title="Desarquivar documento"'));
+  assert.equal((renderActions(usuario).match(/<button/g) ?? []).length, 2);
+  assert.equal(renderActions(usuario).includes('title="Arquivar documento"'), false);
+  assert.equal(renderActions(usuario, { ...doc, arquivado: true }).includes('title="Desarquivar documento"'), false);
   for (const conta of [{ ...usuario, perfilId: 99 }, { ...usuario, permissoes: [] }, { ...usuario, perfil: 'COORDENADOR' }, { ...usuario, perfil: 'ADMINISTRADOR' }, { ...usuario, perfil: 'EQUIPE_MULTIDISCIPLINAR' }]) {
     assert.equal((renderActions(conta).match(/<button/g) ?? []).length, 2, 'Outros perfis, outro autor ou falta de permissão não exibem ações PEA');
   }
@@ -96,23 +96,13 @@ try {
     for (const acao of ['arquivar', 'desarquivar', 'excluir']) await assert.rejects(documentosService.executar(doc, acao, conta));
   }
   assert.equal(chamadas.length, antes, 'Ações sem autoria ou permissão não enviam requisições');
-  const arquivado = await documentosService.executar(doc, 'arquivar', usuario);
-  assert.equal(arquivado.arquivado, true);
-  assert.equal(arquivado.status, 'Arquivado');
-  await assert.rejects(documentosService.executar(arquivado, 'arquivar', usuario));
-  const ativo = await documentosService.executar(arquivado, 'desarquivar', usuario);
-  assert.equal(ativo.arquivado, false);
-  await assert.rejects(documentosService.executar(ativo, 'desarquivar', usuario));
-  falhar = true;
-  for (const acao of ['arquivar', 'excluir']) await assert.rejects(documentosService.executar(ativo, acao, usuario), /Falha de API simulada/);
-  await assert.rejects(documentosService.executar(arquivado, 'desarquivar', usuario), /Falha de API simulada/);
-  assert.equal(ativo.arquivado, false, 'Falha não deve alterar o objeto exibido');
-  falhar = false;
-  assert.equal(await documentosService.executar(arquivado, 'excluir', usuario), null);
-  assert.equal((await documentosService.listar(undefined, usuario.perfilId)).documentos.length, 0);
-  assert.ok(chamadas.includes('post /adaptacoes-pedagogicas/78/arquivar'));
-  assert.ok(chamadas.includes('post /adaptacoes-pedagogicas/78/desarquivar'));
-  assert.ok(chamadas.includes('delete /adaptacoes-pedagogicas/78'));
+  for (const documento of [doc, { ...doc, arquivado: true }, { ...doc, tipo: 'PEI' }, { ...doc, tipo: 'PLANO_ACAO' }]) {
+    assert.equal((renderActions(usuario, documento).match(/<button/g) ?? []).length, 2);
+    for (const acao of ['arquivar', 'desarquivar', 'excluir']) {
+      await assert.rejects(documentosService.executar(documento, acao, usuario), /Professores não podem/);
+    }
+  }
+  assert.equal(chamadas.length, antes, 'Ações bloqueadas para professores não enviam requisi??es');
   vazio = true;
   const listaVazia = await documentosService.listar(undefined, usuario.perfilId);
   assert.equal(listaVazia.documentos.length, 0);
@@ -121,7 +111,7 @@ try {
   falhar = true;
   await assert.rejects(service.atualizar(original.id, request));
   const parcial = await documentosService.listar(undefined, usuario.perfilId);
-  assert.equal(parcial.falhas[0].tipo, 'PEA');
+  assert.ok(parcial.falhas.some(falha => falha.tipo === 'PEA'));
   assert.deepEqual(parcial.tiposDisponiveis, ['PEI', 'PLANO_ACAO']);
   assert.deepEqual(conteudo, Object.fromEntries(camposPea.map(campo => [campo.name, ' Texto válido '])));
   console.log('Documentos PEA: perfis, autoria, permissões, cadastro/edição, botões, arquivamento, desarquivamento, exclusão e erros verificados com API simulada.');

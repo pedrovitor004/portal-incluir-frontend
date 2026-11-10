@@ -165,6 +165,8 @@ export const documentosService = {
     return consulta;
   },
   async executar(documento: Documento, acao: AcaoDocumento, usuario?: Usuario | null): Promise<Documento | null> {
+    const solicitante = usuario === undefined ? userSession.read() : usuario;
+    if (solicitante?.perfil === "PROFESSOR") throw new Error("Professores não podem arquivar, desarquivar ou excluir documentos.");
     if (documento.tipo === "PEA") {
       if (!acaoPeaPermitida(documento, acao, usuario === undefined ? userSession.read() : usuario)) throw new Error("Você não tem permissão para esta ação ou o estado do PEA foi alterado.");
       if (acao === "excluir") { await adaptacoesPedagogicasService.excluir(documento.id); return null; }
@@ -173,7 +175,7 @@ export const documentosService = {
         : await adaptacoesPedagogicasService.desarquivar(documento.id);
       return mapearPea(pea);
     }
-    const conta = userSession.read();
+    const conta = solicitante;
     if (!conta || !canAccess(conta, "documentos.gerenciar")) throw new Error("Você não tem permissão para gerenciar documentos.");
     if (!acaoPermitida(documento, acao)) throw new Error("Esta ação não está disponível para o estado atual do documento.");
     const fonte = fontes.find(f => f.tipo === documento.tipo)!;

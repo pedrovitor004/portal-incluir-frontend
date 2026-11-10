@@ -15,7 +15,7 @@ export default function DocumentActions({ documento, onView, onEdit, onAction, b
   const classes = "inline-flex h-9 w-9 items-center justify-center rounded-xl ring-1 transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0 motion-reduce:transform-none";
   const contexto = `${documento.nome} de ${documento.estudanteNome}`;
   const candidatas: AcaoDocumento[] = [documento.arquivado ? "desarquivar" : "arquivar", "excluir"];
-  const acoes = documento.tipo === "PEA" ? candidatas.filter(acao => acaoPeaPermitida(documento, acao, usuario)) : candidatas;
+  const acoes = usuario?.perfil === "PROFESSOR" ? [] : documento.tipo === "PEA" ? candidatas.filter(acao => acaoPeaPermitida(documento, acao, usuario)) : candidatas;
   return <div className="flex h-full items-center gap-2">
     <button type="button" aria-label={`Visualizar ${contexto}`} title="Visualizar documento" disabled={bloqueado} onClick={() => onView(documento)} className={`${classes} bg-sky-50 text-sky-700 ring-sky-100 hover:bg-sky-100`}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true" className="h-4 w-4"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>

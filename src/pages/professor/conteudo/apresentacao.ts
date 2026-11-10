@@ -31,3 +31,10 @@ export function linkSeguro(link: string | null): string | undefined {
     if (["http:", "https:"].includes(url.protocol) && !url.username && !url.password) return url.href;
   } catch { /* Um link invalido nao deve ser apresentado como navegavel. */ }
 }
+
+export const coresConteudo = {
+  ATIVIDADE: "bg-green-50 text-green-800",
+  PROVA: "bg-amber-50 text-amber-800",
+  MATERIAL_APOIO: "bg-sky-50 text-sky-800",
+  OUTRO: "bg-slate-100 text-slate-700",
+};

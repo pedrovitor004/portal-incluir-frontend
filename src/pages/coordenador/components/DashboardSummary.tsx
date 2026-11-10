@@ -60,8 +60,8 @@ export default function DashboardSummary({ dados, erro, carregando, onRetry }: P
   const explanations = {
     estudantesAtivos: "Estudantes com cadastro ativo na instituição, que podem receber acompanhamento da equipe.",
     professoresAtivos: "Professores com cadastro ativo para participar do acompanhamento acadêmico dos estudantes.",
-    planosAtivos: "Planos Educacionais Individualizados (PEIs) ativos. Eles organizam objetivos e adaptações para apoiar a aprendizagem de cada estudante.",
-    planosArquivados: "Planos Educacionais Individualizados guardados no histórico. Eles não fazem parte dos planos ativos.",
+    planosAtivos: "Planos Educacionais Individualizados (PEIs) de sua autoria que não estão arquivados. Eles organizam objetivos e adaptações para apoiar a aprendizagem de cada estudante.",
+    planosArquivados: "Planos Educacionais Individualizados de sua autoria guardados no histórico. Eles não fazem parte dos planos ativos.",
   };
   const cards = statCards.map(card => ({
     ...card,

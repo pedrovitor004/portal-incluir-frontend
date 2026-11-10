@@ -1,3 +1,4 @@
+import ConteudoIcone from "./ConteudoIcone";
 import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "../../../hooks/useAuth";
 import { canAccess } from "../../../config/access";
@@ -47,7 +48,7 @@ function Biblioteca({ professorId }: { professorId: number }) {
   const paginaAtual = Math.min(pagina, totalPaginas);
   const componentes = [...new Set(materiais.map(m => m.componenteCurricular))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   function recarregar() { setCarregando(true); setErro(""); setSelecionado(null); setTentativa(t => t + 1); }
-  function limpar() { setBusca(""); setComponente(""); setPagina(1); }
+  function limpar() { setTipo(""); setBusca(""); setComponente(""); setPagina(1); }
   async function favoritar(id: number) {
     const material = materiais.find(m => m.id === id);
     if (!material || operando.current) return;
@@ -77,10 +78,11 @@ function Biblioteca({ professorId }: { professorId: number }) {
   }
 
   return <main className="mx-auto max-w-[1100px] space-y-6 pb-10">
-    <header className="flex flex-wrap items-start justify-between gap-4"><div><h1 data-page-title className="text-2xl font-bold text-primary">Conteúdo acadêmico</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">Organize suas provas, atividades e materiais de apoio adaptados para o ensino.</p></div><Button variant="secondary" disabled={carregando || ocupado} onClick={recarregar}>Atualizar materiais</Button></header>
+    <header className="flex flex-wrap items-start justify-between gap-4"><div><h1 data-page-title className="text-2xl font-bold text-primary">Conteúdo acadêmico</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">Organize suas provas, atividades e materiais de apoio adaptados para o ensino.</p></div><Button variant="secondary" icon={<ConteudoIcone nome="atualizar" />} disabled={carregando || ocupado} onClick={recarregar}>Atualizar materiais</Button></header>
     <AbasConteudo aba={tipo} onChange={aba => { setTipo(aba); setPagina(1); }} materiais={materiais} carregando={carregando || !!erro} painelId={painelId} />
     <section role="tabpanel" id={painelId} aria-label={tipo ? tiposConteudo[tipo] : "Visão geral"} className="space-y-6">
-    {tipo === "" && <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-green-200 bg-green-50 p-5 sm:p-6"><div><h2 className="font-bold text-primary">Sua biblioteca de materiais adaptados</h2><p className="mt-2 max-w-xl text-sm text-slate-600">Cadastre novos conteúdos e marque a estrela dos materiais que deseja manter em destaque.</p></div><Button disabled={ocupado} onClick={() => setFormulario({})}>Adicionar conteúdo</Button></section>}
+    {tipo === "" && <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-green-200 bg-green-50 p-5 sm:p-6"><div><h2 className="font-bold text-primary">Sua biblioteca de materiais adaptados</h2><p className="mt-2 max-w-xl text-sm text-slate-600">Cadastre novos conteúdos e marque a estrela dos materiais que deseja manter em destaque.</p></div><Button icon={<ConteudoIcone nome="adicionar" />} disabled={ocupado} onClick={() => setFormulario({})}>Adicionar conteúdo</Button></section>}
+    {tipo !== "" && <div className="flex justify-end"><Button icon={<ConteudoIcone nome="adicionar" />} disabled={ocupado} onClick={() => setFormulario({})}>Adicionar conteúdo</Button></div>}
     {excluindo && <p role="status" className="text-sm text-slate-600">Preparando exclusão do material...</p>}
     {favoritando && <p role="status" className="text-sm text-slate-600">Atualizando favoritos...</p>}
     {erroAcao && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{erroAcao}</p>}
@@ -88,7 +90,7 @@ function Biblioteca({ professorId }: { professorId: number }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-semibold text-slate-700">Buscar material<input type="search" className={campoConteudo} placeholder="Título, estudante ou matrícula" value={busca} onChange={e => { setBusca(e.target.value); setPagina(1); }} /></label>
         <label className="text-sm font-semibold text-slate-700">Componente curricular<select className={campoConteudo} value={componente} onChange={e => { setComponente(e.target.value); setPagina(1); }}><option value="">Todos os componentes</option>{componente && !componentes.includes(componente) && <option value={componente}>{componente}</option>}{componentes.map(c => <option key={c} value={c}>{c}</option>)}</select></label>
-      </div><div className="mt-4 flex flex-wrap items-center justify-between gap-3">{!carregando && !erro && <p role="status" className="text-xs text-slate-500">{filtrados.length} material(is) encontrado(s).</p>}<Button variant="soft" onClick={limpar}>Limpar filtros</Button></div>
+      </div><div className="mt-4 flex flex-wrap items-center justify-between gap-3">{!carregando && !erro && <p role="status" className="text-xs text-slate-500">{filtrados.length} material(is) encontrado(s).</p>}<Button variant="soft" icon={<ConteudoIcone nome="limpar" />} onClick={limpar}>Limpar filtros</Button></div>
     </section>
     {carregando ? <LoadingState label="Carregando seus materiais..." /> : erro ? <div role="alert" className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-5"><p className="text-sm text-red-700">{erro}</p><Button variant="secondary" onClick={recarregar}>Tentar novamente</Button></div> : materiais.length === 0 ? <div role="status" className="rounded-2xl border border-[#dce5dc] bg-white p-8 text-center"><h2 className="font-semibold text-slate-800">Nenhum material cadastrado</h2><p className="mt-2 text-sm text-slate-500">Seus conteúdos acadêmicos adaptados serão exibidos aqui.</p></div> : filtrados.length === 0 ? <div role="status" className="rounded-2xl border border-[#dce5dc] bg-white p-8 text-center"><h2 className="font-semibold text-slate-800">Nenhum material encontrado para estes filtros</h2><p className="mt-2 text-sm text-slate-500">Altere a busca ou limpe os filtros para consultar os materiais.</p></div> : <>
       {tipo === "" ? <>

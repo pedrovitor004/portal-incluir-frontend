@@ -8,24 +8,25 @@ import type { DashboardCoordenadorData } from "../types/dashboard";
 export function useDashboardCoordenador() {
   const { usuario } = useAuth();
   const perfilId = usuario?.perfilId;
-  const [dados, setDados] = useState<DashboardCoordenadorData | null>(null);
-  const [erro, setErro] = useState("");
+  const [resultado, setResultado] = useState<{ perfilId: number; dados: DashboardCoordenadorData | null; erro: string } | null>(null);
+  const dados = resultado && resultado.perfilId === perfilId ? resultado.dados : null;
+  const erro = resultado && resultado.perfilId === perfilId ? resultado.erro : "";
   const [tentativa, setTentativa] = useState(0);
 
   useEffect(() => {
     if (!perfilId) return;
     const controller = new AbortController();
     dashboardService.buscarCoordenador(perfilId, controller.signal)
-      .then(result => { if (!controller.signal.aborted) setDados(result); })
+      .then(result => { if (!controller.signal.aborted) setResultado({ perfilId, dados: result, erro: "" }); })
       .catch(error => {
         if (controller.signal.aborted) return;
         const mensagem = mensagemErro(error);
-        setErro(mensagem);
+        setResultado({ perfilId, dados: null, erro: mensagem });
         notificationService.error(mensagem);
       });
     return () => controller.abort();
   }, [perfilId, tentativa]);
 
-  function recarregar() { setDados(null); setErro(""); setTentativa(t => t + 1); }
+  function recarregar() { setResultado(null); setTentativa(t => t + 1); }
   return { dados, erro, carregando: !dados && !erro, recarregar };
 }

@@ -5,6 +5,7 @@ import InstitutionalResources from "../../components/common/InstitutionalResourc
 import DashboardSummary from "./components/DashboardSummary";
 import RecentStudents from "./components/RecentStudents";
 import RecentNotifications from "./components/RecentNotifications";
+import Button from "../../components/common/Button";
 
 export default function DashboardCoordenador() {
   const { usuario } = useAuth();
@@ -22,6 +23,7 @@ export default function DashboardCoordenador() {
         <p className="mt-1 text-sm text-slate-500">
           Visão rápida dos estudantes, pendências e atividades recentes.
         </p>
+        <Button className="mt-3" variant="secondary" onClick={recarregar}>Atualizar indicadores</Button>
       </header>
       <section className="rounded-2xl border border-[#dce5dc] bg-white p-5 sm:p-6" aria-label="Boas-vindas">
         <h2 className="text-lg font-semibold text-primary">Olá, {usuario?.nome}!</h2>
