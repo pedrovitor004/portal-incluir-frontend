@@ -9,6 +9,7 @@ import { notificationService } from "../../../services/notificationService";
 import type { RegistroAcompanhamento, SituacaoAcompanhamento } from "../../../types/gestaoAcompanhamento";
 import RecordDialog from "./RecordDialog";
 import ConsultaPeasCoordenador from "./ConsultaPeasCoordenador";
+import ConsultaConteudosCoordenador from "./ConsultaConteudosCoordenador";
 import { campoGestao, dataGestao } from "./presentation";
 
 type Visao = "adaptacoes" | "conteudo" | "atendimentos";
@@ -16,7 +17,7 @@ const titulos: Record<Visao, string> = { adaptacoes: "Adaptações pedagógicas"
 const cores: Record<SituacaoAcompanhamento, string> = { Ativo: "bg-green-50 text-green-800", Inativo: "bg-amber-50 text-amber-900", Arquivado: "bg-slate-100 text-slate-600" };
 
 export default function GestaoAcompanhamentoPage({ visao }: { visao: Visao }) {
-  return visao === "adaptacoes" ? <ConsultaPeasCoordenador /> : <GestaoAcompanhamentoPreview visao={visao} />;
+  return visao === "adaptacoes" ? <ConsultaPeasCoordenador /> : visao === "conteudo" ? <ConsultaConteudosCoordenador /> : <GestaoAcompanhamentoPreview visao={visao} />;
 }
 
 function GestaoAcompanhamentoPreview({ visao }: { visao: Visao }) {

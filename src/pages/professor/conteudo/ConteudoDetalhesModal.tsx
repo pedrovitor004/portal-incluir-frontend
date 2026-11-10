@@ -7,6 +7,8 @@ import { mensagemErro } from "../../../services/apiError";
 import { formatarDataDocumento } from "../../../config/documentos";
 import type { ConteudoAcademicoResponse } from "../../../types/conteudoAcademico";
 import { linkSeguro, tamanhoArquivo, tiposConteudo } from "./apresentacao";
+import { useAuth } from "../../../hooks/useAuth";
+import { canAccess } from "../../../config/access";
 
 export function DetalhesConteudo({ material }: { material: ConteudoAcademicoResponse }) {
   const link = linkSeguro(material.link);
@@ -26,7 +28,14 @@ export function DetalhesConteudo({ material }: { material: ConteudoAcademicoResp
   </div>;
 }
 
-export default function ConteudoDetalhesModal({ id, professorId, onClose }: { id: number; professorId: number; onClose: () => void }) {
+type Props = { id: number; onClose: () => void } & (
+  { professorId: number; consultaCoordenador?: false } | { consultaCoordenador: true; professorId?: never }
+);
+
+export default function ConteudoDetalhesModal({ id, professorId, onClose, consultaCoordenador = false }: Props) {
+  const { usuario } = useAuth();
+  const autorizado = !!usuario && canAccess(usuario, "academico.gerar") && (consultaCoordenador
+    ? usuario.perfil === "COORDENADOR" : usuario.perfil === "PROFESSOR" && usuario.perfilId === professorId);
   const [material, setMaterial] = useState<ConteudoAcademicoResponse | null>(null);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
@@ -35,19 +44,20 @@ export default function ConteudoDetalhesModal({ id, professorId, onClose }: { id
   const [erroDownload, setErroDownload] = useState("");
   const download = useRef<AbortController | null>(null);
   useEffect(() => {
+    if (!autorizado) return;
     const controller = new AbortController();
     api.buscarPorId(id, controller.signal).then(dados => {
       if (controller.signal.aborted) return;
-      if (dados.id !== id || dados.professorId !== professorId) { setErro("Material indisponível para este professor."); return; }
+      if (dados.id !== id || (!consultaCoordenador && dados.professorId !== professorId)) { setErro("Material indisponível para consulta."); return; }
       setMaterial(dados);
     }).catch((e: unknown) => { if (!controller.signal.aborted) setErro(mensagemErro(e)); })
       .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
     return () => controller.abort();
-  }, [id, professorId, tentativa]);
+  }, [id, professorId, tentativa, autorizado, consultaCoordenador]);
   useEffect(() => () => download.current?.abort(), []);
 
   async function baixar() {
-    if (!material?.arquivoNome || download.current) return;
+    if (!autorizado || !material?.arquivoNome || download.current) return;
     const controller = new AbortController(); download.current = controller;
     setBaixando(true); setErroDownload("");
     try {
@@ -63,6 +73,7 @@ export default function ConteudoDetalhesModal({ id, professorId, onClose }: { id
     finally { download.current = null; if (!controller.signal.aborted) setBaixando(false); }
   }
 
+  if (!autorizado) return <p role="alert">Você não tem autorização para consultar este material.</p>;
   return <Modal open onClose={onClose} size="wide" title={material?.titulo || "Visualizar material"} description="Conteúdo acadêmico adaptado · Dados salvos"
     footer={<div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row"><Button variant="secondary" onClick={onClose}>Fechar</Button>{!carregando && !erro && material?.arquivoNome && <Button disabled={baixando} onClick={() => void baixar()}>{baixando ? "Baixando..." : "Baixar arquivo"}</Button>}</div>}>
     {carregando ? <LoadingState compact label="Carregando material..." /> : erro ? <div role="alert" className="space-y-3"><p className="text-red-700">{erro}</p><Button variant="secondary" onClick={() => { setErro(""); setMaterial(null); setCarregando(true); setTentativa(t => t + 1); }}>Tentar novamente</Button></div> : material && <DetalhesConteudo material={material} />}
