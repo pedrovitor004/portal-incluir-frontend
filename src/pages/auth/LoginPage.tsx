@@ -2,7 +2,7 @@ import AccessibilitySymbols from "../../components/auth/AccessibilitySymbols";
 import LoadingState from "../../components/common/LoadingState";
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { destinoUsuario } from "../../config/routes";
+import { destinoUsuario, routes } from "../../config/routes";
 import { mensagemErro } from "../../services/apiError";
 import { Link, useNavigate } from "react-router";
 import logoClai from "../../assets/logos/logo-clai.png";
@@ -167,12 +167,12 @@ export default function LoginPage() {
                   />
 
                   <div className="-mt-2 flex justify-end">
-                    <button
-                      type="button"
+                    <Link
+                      to={routes.recuperarSenha}
                       className="text-sm font-medium text-primary transition hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
                     >
                       Esqueci minha senha
-                    </button>
+                    </Link>
                   </div>
 
                   <button

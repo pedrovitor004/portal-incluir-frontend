@@ -14,6 +14,8 @@ import type { PerfilUsuario } from "../../types/auth";
 
 import LoginPage from "../../pages/auth/LoginPage";
 import RegisterPage from "../../pages/auth/RegisterPage";
+import RecuperarSenhaPage from "../../pages/auth/RecuperarSenhaPage";
+import RedefinirSenhaPage from "../../pages/auth/RedefinirSenhaPage";
 import HomePage from "../../pages/home/HomePage";
 import NotFoundPage from "../../pages/not-found/NotFoundPage";
 import AppLayout from "../../layouts/AppLayout";
@@ -114,6 +116,8 @@ export default function AppRoutes() {
       {/* Páginas públicas */}
       <Route path={routes.home} element={<HomePage />} />
       <Route path={routes.login} element={<LoginPage />} />
+      <Route path={routes.recuperarSenha} element={<RecuperarSenhaPage />} />
+      <Route path={routes.redefinirSenha} element={<RedefinirSenhaPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/home" element={<Navigate to={routes.home} replace />} />
       {([401, 403, 404, 500, 503] as const).map(codigo => <Route key={codigo} path={`/${codigo}`} element={<NotFoundPage codigo={codigo} />} />)}

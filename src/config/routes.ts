@@ -3,6 +3,8 @@ import type { Usuario } from "../types/auth";
 
 export const routes = {
   login: "/login",
+  recuperarSenha: "/recuperar-senha",
+  redefinirSenha: "/redefinir-senha",
   register: "/register",
   home: "/",
   lgpd: "/recursos/lgpd",

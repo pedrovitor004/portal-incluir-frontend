@@ -12,6 +12,9 @@ export interface Usuario {
 }
 
 export interface LoginRequest { email: string; senha: string }
+export interface RecuperarSenhaRequest { email: string }
+export interface RedefinirSenhaRequest { token: string; novaSenha: string }
+export interface MensagemAuthResponse { message: string }
 export interface SolicitacaoAcesso {
   id: number; tipo: "CADASTRO" | "ADMINISTRACAO"; nome: string; email: string; perfil: PerfilUsuario;
   status: "PENDENTE" | "APROVADA" | "RECUSADA";

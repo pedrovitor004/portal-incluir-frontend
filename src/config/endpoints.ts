@@ -13,6 +13,8 @@ export const endpoints = {
   auth: {
     login: "/auth/login",
     register: "/auth/register",
+    recuperarSenha: "/auth/recuperar-senha",
+    redefinirSenha: "/auth/redefinir-senha",
   },
   coordenadores: {
     perfil: (id: number) => `/coordenadores/${id}`,
