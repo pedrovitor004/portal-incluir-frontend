@@ -6,6 +6,11 @@ import type {
 import { http } from "./http";
 
 export const adaptacoesPedagogicasService = {
+  async listarPorEstudante(estudanteId: number, signal?: AbortSignal): Promise<AdaptacaoPedagogicaResponse[]> {
+    const { data } = await http.get<AdaptacaoPedagogicaResponse[]>(`${endpoints.documentos.adaptacoesPedagogicas}/estudante/${estudanteId}`, { signal });
+    if (!Array.isArray(data) || data.some(p => p.estudanteId !== estudanteId)) throw new Error("Resposta inválida ao consultar PEAs do estudante.");
+    return data;
+  },
   async listarTodos(signal?: AbortSignal): Promise<AdaptacaoPedagogicaResponse[]> {
     return (await http.get<AdaptacaoPedagogicaResponse[]>(endpoints.documentos.adaptacoesPedagogicas, { signal })).data;
   },

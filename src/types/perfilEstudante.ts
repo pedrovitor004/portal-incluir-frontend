@@ -10,6 +10,7 @@ export type AdaptacaoEstudante = {
   arquivado: boolean; dataCriacao: string | null; dataAtualizacao: string | null;
 };
 export type DadosPerfilEstudante = {
+  historicoConsultado?: boolean; peis?: PlanoResponse[];
   estudante: EstudanteResponse; planos: PlanoAcaoPerfil[]; documentos: Documento[];
   adaptacoes: AdaptacaoEstudante[]; historico: RegistroAuditoria[];
   falhas: Partial<Record<"planos" | "peis" | "adaptacoes" | "historico", string>>;

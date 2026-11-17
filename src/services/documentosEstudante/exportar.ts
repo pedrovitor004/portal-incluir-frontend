@@ -1,10 +1,10 @@
 import { estudantesService } from "../estudantesService";
 import { planoAcaoService } from "../planoAcaoService";
-import { perfilEstudanteService } from "../perfilEstudanteService";
 import { necessidades, condicoes, atendimentos, acessibilidades } from "../../config/estudanteFormOptions";
 import type { EstudanteResponse } from "../../types/estudante";
 import type { PlanoAcaoResponse } from "../../types/planoAcao";
 import modeloPlano from "../../assets/documentos/plano-acao-clai.docx?url";
+import { raiService } from "../raiService";
 
 export type TipoExportacao = "anamnese" | "plano" | "rai";
 export type CampoDocumento = { titulo: string; valor: string };
@@ -77,7 +77,7 @@ export async function preencherModeloPlano(p: PlanoAcaoResponse): Promise<Uint8A
 
 function baixar(blob: Blob, nome: string) { const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = nome; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); }
 
-export async function exportarDocumentoFluxo(estudanteId: number, tipo: TipoExportacao, formato: "pdf" | "docx", planoId?: number) {
+export async function exportarDocumentoFluxo(estudanteId: number, tipo: TipoExportacao, formato: "pdf" | "docx", planoId?: number, raiId?: number) {
   const estudante = await estudantesService.buscarPorId(estudanteId);
   const titulo = tipo === "plano" ? "PLANO DE AÇÃO DA CLAI" : tipo === "anamnese" ? "ANAMNESE DO ESTUDANTE" : "RELATÓRIO DE ACOMPANHAMENTO INDIVIDUAL (RAI)";
   let campos = camposAnamnese(estudante);
@@ -89,19 +89,15 @@ export async function exportarDocumentoFluxo(estudanteId: number, tipo: TipoExpo
     campos = camposPlano(plano);
   }
   if (tipo === "rai") {
-    const dados = await perfilEstudanteService.consultar(estudanteId, new AbortController().signal);
-    if (dados.falhas.planos || dados.falhas.peis || dados.falhas.adaptacoes) throw new Error("Atualize os registros antes de emitir o RAI. Algumas informações não puderam ser consultadas.");
-    campos = [{ titulo: "Emissão", valor: new Date().toLocaleString("pt-BR") }, { titulo: "Identificação inicial e anamnese", valor: "Dados registrados até esta emissão." }, ...campos,
-      ...dados.documentos.flatMap(d => [{ titulo: `${d.nome} • ${d.periodo} • ${d.status}`, valor: `Registro ${d.id}` }, ...d.detalhes]),
-      ...dados.adaptacoes.map(a => ({ titulo: `Adaptação pedagógica • ${a.componenteCurricular}`, valor: [`Docente: ${a.professorNome}`, `Objetivo geral: ${texto(a.objetivoGeral)}`, `Objetivos específicos: ${texto(a.objetivosEspecificos)}`, `Conteúdos: ${texto(a.conteudosProgramaticos)}`, `Metodologia: ${texto(a.metodologia)}`, `Avaliação: ${texto(a.avaliacao)}`].join("\n") })),
-      ...dados.historico.map(h => ({ titulo: `Histórico • ${h.operacao} • ${h.tabela}`, valor: new Date(h.data).toLocaleString("pt-BR") })),
-      ...(dados.falhas.historico ? [{ titulo: "Histórico de alterações", valor: "Indisponível nesta emissão. Este relatório reúne os documentos e dados atuais do acompanhamento." }] : [])];
+    if (!raiId) throw new Error("Selecione um RAI salvo para exportar.");
+    const arquivo = await raiService.arquivo(estudanteId, raiId, formato);
+    baixar(arquivo, `rai-${estudante.matricula.replace(/[^a-zA-Z0-9_-]/g, "_")}-${raiId}.${formato}`); return;
   }
   const nome = `${tipo}-${estudante.matricula.replace(/[^a-zA-Z0-9_-]/g, "_")}${plano ? `-${plano.id}` : ""}.${formato}`;
   if (formato === "docx" && plano) { const arquivo = await preencherModeloPlano(plano); baixar(new Blob([new Uint8Array(arquivo)], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }), nome); return; }
   if (formato === "docx") {
     const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import("docx");
-    const doc = new Document({ sections: [{ properties: {}, children: [new Paragraph({ text: titulo, heading: HeadingLevel.TITLE }), ...campos.flatMap(c => [new Paragraph({ children: [new TextRun({ text: c.titulo, bold: true })], spacing: { before: 160, after: 80 } }), ...c.valor.split("\n").map(text => new Paragraph({ text }))]), new Paragraph({ text: "Assinatura do(a) responsável: __________________________________________", spacing: { before: 600 } }), new Paragraph("Data: ____/____/________") ] }] });
+    const doc = new Document({ sections: [{ properties: {}, children: [new Paragraph({ text: titulo, heading: HeadingLevel.TITLE }), ...campos.flatMap(c => [new Paragraph({ children: [new TextRun({ text: c.titulo, bold: true })], keepNext: true, keepLines: true, spacing: { before: 160, after: 80 } }), ...c.valor.split("\n").map(text => new Paragraph({ text }))]), new Paragraph({ text: "Assinatura do(a) responsável: __________________________________________", spacing: { before: 600 } }), new Paragraph("Data: ____/____/________") ] }] });
     baixar(await Packer.toBlob(doc), nome); return;
   }
   const [{ jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
@@ -110,7 +106,7 @@ export async function exportarDocumentoFluxo(estudanteId: number, tipo: TipoExpo
   let y = 20;
   if (tipo === "plano") { pdf.text("ANEXO II", 105, y, { align: "center" }); y += 8; }
   const linhas = pdf.splitTextToSize(titulo, 158); pdf.text(linhas, 105, y, { align: "center" }); y += linhas.length * 6 + 5;
-  autoTable(pdf, { startY: y, margin: { left: 30, right: 30, bottom: 20 }, body: campos.map(c => [`${c.titulo}\n\n${c.valor}`]), theme: "grid", styles: { font: "helvetica", fontSize: 10, textColor: 0, lineColor: 0, lineWidth: 0.2, cellPadding: 3, overflow: "linebreak" }, rowPageBreak: "auto" });
+  autoTable(pdf, { startY: y, margin: { top: 20, left: 30, right: 30, bottom: 20 }, body: campos.map(c => [`${c.titulo}\n\n${c.valor}`]), theme: "grid", styles: { font: "helvetica", fontSize: 10, textColor: 0, lineColor: 0, lineWidth: 0.2, cellPadding: 3, overflow: "linebreak" }, rowPageBreak: "auto" });
   const ultima = pdf as typeof pdf & { lastAutoTable: { finalY: number } };
   y = ultima.lastAutoTable.finalY + 15;
   if (y + 35 > 277) { pdf.addPage(); y = 25; }

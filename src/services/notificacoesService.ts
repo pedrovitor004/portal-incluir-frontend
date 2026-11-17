@@ -12,6 +12,7 @@ export function destinoNotificacao(n: NotificacaoFluxo, perfil: PerfilUsuario): 
   const base = accessProfiles[perfil].basePath;
   if (n.etapa === "OCORRENCIA") return `${base}/ocorrencias${n.ocorrenciaId ? `?id=${n.ocorrenciaId}` : ""}`;
   if (n.etapa === "PEA") return n.solicitacaoPeaId && perfil === "PROFESSOR" ? `${base}/documentos/solicitacoes-pea/${n.solicitacaoPeaId}` : `${base}/documentos`;
+  if (perfil === "PROFESSOR") return `${base}/documentos`;
   if (n.etapa === "ANAMNESE") return `${base}/anamnese?estudanteId=${n.estudanteId}`;
   if (n.etapa === "PLANO_ACAO") return `${base}/plano-acao?estudanteId=${n.estudanteId}${n.planoId ? `&planoId=${n.planoId}` : ""}`;
   return `${base}/estudantes/${n.estudanteId}/etapas/pei`;

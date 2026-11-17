@@ -12,12 +12,14 @@ export function montarEtapas(estudante: EstudanteResponse, planos: Plano[] | nul
     const assinado = ativos.some(d => d.status === "ASSINADO");
     return { id, titulo, estado: ativos.length ? id === "plano" && !assinado ? "revisar" : "registrado" : "pendente", resumo: ativos.length ? id === "plano" ? assinado ? "Há plano de ação assinado e não arquivado." : "Há plano em rascunho. Falta revisar e assinar." : `${ativos.length} PEI(s) não arquivado(s) registrado(s). A existência do documento não confirma sua revisão.` : registros.length ? "Existem apenas registros arquivados. Verifique a necessidade de um novo documento." : "Nenhum documento registrado para este estudante.", destino: "perfil" };
   }
-  return [
+  const etapas: EtapaEstudante[] = [
     { id: "anamnese", titulo: "Anamnese e cadastro inicial", estado: !fluxo ? "indisponivel" : fluxo.anamneseStatus === "CONCLUIDA" ? "registrado" : fluxo.anamneseStatus === "RASCUNHO" ? "revisar" : "pendente", resumo: !fluxo ? "Não foi possível consultar a situação da anamnese." : fluxo.anamneseStatus === "CONCLUIDA" ? "Anamnese marcada como concluída." : fluxo.anamneseStatus === "RASCUNHO" ? "Cadastro salvo em rascunho. Continue o preenchimento quando desejar." : "Revise o cadastro inicial e preencha a anamnese.", destino: "cadastro" },
     documento("plano", "Plano de Ação", planos),
     documento("pei", "Plano Educacional Individualizado (PEI)", peis),
     { id: "rai", titulo: "Relatório de Acompanhamento Individual (RAI)", estado: "revisar", resumo: "Emita pelo perfil o relatório acumulativo dos dados e documentos registrados até a emissão.", destino: "perfil" },
   ];
+  const periodo = fluxo?.periodosConcluidos?.[0];
+  return periodo ? etapas.map(e => ({ ...e, estado: "registrado", resumo: `Etapa concluída em ${periodo.anoLetivo} · ${periodo.periodicidade.toLowerCase()} ${periodo.periodicidade === "ANUAL" ? "" : periodo.numeroPeriodo}. Documentos disponíveis para consulta e continuidade do acompanhamento.` })) : etapas;
 }
 export const acompanhamentoEstudanteService = {
   async consultar(id: number, signal: AbortSignal) {

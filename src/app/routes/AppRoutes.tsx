@@ -208,9 +208,9 @@ export default function AppRoutes() {
       />
 
       {(["COORDENADOR", "ADMINISTRADOR"] as const).map(perfil => <Route key={perfil + "-cadastro"} path={accessProfiles[perfil].basePath + "/cadastro-estudante"} element={<PerfilRoute perfil={perfil} permission="anamnese"><CadastroEstudantePage /></PerfilRoute>} />)}
-      {(["PROFESSOR", "EQUIPE_MULTIDISCIPLINAR"] as const).map(perfil => <Route key={perfil + "-anamnese"} path={accessProfiles[perfil].basePath + "/anamnese"} element={<PerfilRoute perfil={perfil} permission="anamnese"><AnamnesePage /></PerfilRoute>} />)}
-      {(["ADMINISTRADOR", "PROFESSOR", "EQUIPE_MULTIDISCIPLINAR"] as const).map(perfil => <Route key={perfil + "-plano"} path={accessProfiles[perfil].basePath + "/plano-acao"} element={<PerfilRoute perfil={perfil} permission="estudantes.consultar"><PlanoAcaoPage /></PerfilRoute>} />)}
-      {(["COORDENADOR", "ADMINISTRADOR", "PROFESSOR", "EQUIPE_MULTIDISCIPLINAR"] as const).map(perfil => <Route key={perfil + "-etapa-documento"} path={accessProfiles[perfil].basePath + "/estudantes/:id/etapas/:etapa"} element={<PerfilRoute perfil={perfil} permission="estudantes.consultar"><EtapaDocumentoPage /></PerfilRoute>} />)}
+      {(["EQUIPE_MULTIDISCIPLINAR"] as const).map(perfil => <Route key={perfil + "-anamnese"} path={accessProfiles[perfil].basePath + "/anamnese"} element={<PerfilRoute perfil={perfil} permission="anamnese"><AnamnesePage /></PerfilRoute>} />)}
+      {(["ADMINISTRADOR", "EQUIPE_MULTIDISCIPLINAR"] as const).map(perfil => <Route key={perfil + "-plano"} path={accessProfiles[perfil].basePath + "/plano-acao"} element={<PerfilRoute perfil={perfil} permission="estudantes.consultar"><PlanoAcaoPage /></PerfilRoute>} />)}
+      {(["COORDENADOR", "ADMINISTRADOR"] as const).map(perfil => <Route key={perfil + "-etapa-documento"} path={accessProfiles[perfil].basePath + "/estudantes/:id/etapas/:etapa"} element={<PerfilRoute perfil={perfil} permission="estudantes.consultar"><EtapaDocumentoPage /></PerfilRoute>} />)}
       {/* Página não encontrada */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

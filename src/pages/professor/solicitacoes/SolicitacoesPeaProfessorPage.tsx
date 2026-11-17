@@ -8,11 +8,13 @@ import { canAccess } from "../../../config/access";
 import { routes } from "../../../config/routes";
 import ConsultaPeaState from "../../../components/pea/ConsultaPeaState";
 import SolicitacaoPeaCard from "../../../components/pea/SolicitacaoPeaCard";
+import PeaEntregueModal from "../../../components/pea/PeaEntregueModal";
 import Button from "../../../components/common/Button";
 function ListaSolicitacoesPea() {
   const { usuario } = useAuth();
   const consultar = useCallback((signal: AbortSignal) => solicitacoesPeaService.recebidas(signal), []);
   const consulta = useConsultaPea(consultar);
+  const [peaId, setPeaId] = useState<number | null>(null);
   const [aba, setAba] = useState<"abertas" | "entregues">("abertas");
   const abasId = useId();
   const solicitacoes = consulta.dados ?? [];
@@ -44,13 +46,14 @@ function ListaSolicitacoesPea() {
     {!consulta.carregando && !consulta.erro && solicitacoes.length > 0 && visiveis.length === 0 && <p role="status" className="rounded-xl border border-[#dce5dc] bg-white p-5 text-sm text-slate-600">{aba === "abertas" ? "Nenhuma solicitação em aberto." : "Nenhum PEA entregue por solicitação."}</p>}
     {!consulta.carregando && !consulta.erro && visiveis.map(s => {
       const d = meuDestinatario(s, usuario);
-      return <SolicitacaoPeaCard key={s.id} solicitacao={s}><Link className="inline-flex min-h-11 items-center font-semibold text-green-800 underline" to={`${routes.solicitacoesPeaProfessor}/${s.id}`}>{d?.situacao === "PENDENTE" ? "Consultar e responder solicitação" : d?.situacao === "ENTREGUE" ? "Consultar entrega" : "Consultar solicitação cancelada"}</Link></SolicitacaoPeaCard>;
+      return <SolicitacaoPeaCard key={s.id} solicitacao={s} onViewPea={usuario && canAccess(usuario, "pedagogico.consultar") ? setPeaId : undefined}><Link className="inline-flex min-h-11 items-center font-semibold text-green-800 underline" to={`${routes.solicitacoesPeaProfessor}/${s.id}`}>{d?.situacao === "PENDENTE" ? "Consultar e responder solicitação" : d?.situacao === "ENTREGUE" ? "Consultar entrega" : "Consultar solicitação cancelada"}</Link></SolicitacaoPeaCard>;
     })}
     </section>
     {!consulta.carregando && !consulta.erro && canceladas.length > 0 && <details className="rounded-xl border border-[#dce5dc] bg-white p-4">
       <summary className="min-h-11 cursor-pointer text-sm font-semibold text-slate-700">Solicitações canceladas ({canceladas.length})</summary>
       <div className="mt-4 space-y-6">{canceladas.map(s => <SolicitacaoPeaCard key={s.id} solicitacao={s}><Link className="inline-flex min-h-11 items-center font-semibold text-green-800 underline" to={`${routes.solicitacoesPeaProfessor}/${s.id}`}>Consultar solicitação cancelada</Link></SolicitacaoPeaCard>)}</div>
     </details>}
+    {peaId !== null && <PeaEntregueModal key={peaId} id={peaId} onClose={() => setPeaId(null)} />}
   </main>;
 }
 

@@ -9,6 +9,7 @@ import Modal from "../../../../components/common/Modal";
 import LoadingState from "../../../../components/common/LoadingState";
 import ConsultaPeaState from "../../../../components/pea/ConsultaPeaState";
 import SolicitacaoPeaCard from "../../../../components/pea/SolicitacaoPeaCard";
+import PeasEntregues from "../../../../components/pea/PeasEntregues";
 import PeaEntregueModal from "../../../../components/pea/PeaEntregueModal";
 import { canAccess } from "../../../../config/access";
 const campo = "mt-1 block min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal";
@@ -123,6 +124,7 @@ export default function SolicitacoesPeaPanel({ estudanteId, somenteLeitura }: { 
     {gerencia && !podeCriar && !somenteLeitura && <p className="text-sm text-amber-800">Novas solicitações criam vínculos automaticamente e exigem a permissão de vincular estudantes. O acompanhamento das solicitações existentes permanece disponível.</p>}
     {somenteLeitura && <p className="text-sm text-slate-600">Estudante indisponível para novas solicitações e cancelamentos. O histórico permanece para consulta conforme autorização.</p>}
     {sucesso && <p role="status" className="rounded-lg bg-green-50 p-3 text-green-900">{sucesso}</p>}
+    {usuario && canAccess(usuario, "pedagogico.consultar") && <PeasEntregues key={estudanteId} estudanteId={estudanteId} onView={setPeaId} />}
     <ConsultaPeaState {...consulta} onRetry={consulta.recarregar} />
     {novo && podeCriar && !somenteLeitura && <NovaSolicitacao estudanteId={estudanteId} onCancel={() => setNovo(false)} onSaved={() => { setNovo(false); setSucesso("Solicitação registrada. Confira abaixo os destinatários efetivos do envio."); consulta.recarregar(); }} />}
     {!consulta.carregando && !consulta.erro && consulta.dados?.length === 0 && <p role="status" className="text-sm text-slate-600">Nenhuma solicitação de sua autoria para este estudante.</p>}

@@ -27,6 +27,7 @@ try {
   assert.equal(pertenceAoEstudante(historico[6], 7), true);
   const get = http.get, listar = auditoriasService.listarHistorico;
   const signal = new AbortController().signal;
+  const auditor = { id: 1, perfilId: 1, nome: "Auditor", email: "auditor@teste.invalid", perfil: "ADMINISTRADOR", root: true };
   try {
     const consulta = async (url, config) => {
       assert.equal(config.signal, signal);
@@ -38,7 +39,10 @@ try {
     };
     http.get = consulta;
     auditoriasService.listarHistorico = async () => ({ registros: historico, total: historico.length });
-    const dados = await perfilEstudanteService.consultar(7, signal);
+    let consultasHistorico = 0; auditoriasService.listarHistorico = async () => { consultasHistorico++; return { registros: historico, total: historico.length }; };
+    const semPermissao = await perfilEstudanteService.consultar(7, signal, { ...auditor, root: false, perfil: "COORDENADOR" });
+    assert.equal(consultasHistorico, 0, "Sem permissão não consulta auditoria"); assert.equal(semPermissao.falhas.historico, undefined); assert.equal(semPermissao.historicoConsultado, false);
+    const dados = await perfilEstudanteService.consultar(7, signal, auditor);
     assert.equal(dados.planos.length, 1);
     assert.equal(dados.documentos.length, 2);
     assert.notEqual(dados.documentos[0].chave, dados.documentos[1].chave);
@@ -59,13 +63,13 @@ try {
     assert.equal(montarLinhaDoTempo({ ...semHistorico, documentos: [], adaptacoes: [], estudante: { ...estudante, dataConclusao: "2026-10-10" } })[0].titulo, "Acompanhamento concluído");
     http.get = async (url, config) => { if (url === "/planos-acao") throw new Error("Falha na consulta de planos"); return consulta(url, config); };
     auditoriasService.listarHistorico = async () => { throw new Error("Sessão expirada"); };
-    const parcial = await perfilEstudanteService.consultar(7, signal);
+    const parcial = await perfilEstudanteService.consultar(7, signal, auditor);
     assert.equal(parcial.estudante.id, 7);
     assert.equal(parcial.documentos.length, 1);
     assert(parcial.falhas.planos && parcial.falhas.historico);
     assert.equal(parcial.adaptacoes.length, 1);
     http.get = async () => { throw new Error("Falha no estudante"); };
-    await assert.rejects(() => perfilEstudanteService.consultar(7, signal), /Falha no estudante/);
+    await assert.rejects(() => perfilEstudanteService.consultar(7, signal, auditor), /Falha no estudante/);
     await assert.rejects(() => perfilEstudanteService.consultar(-1, signal), /estudante informado/);
   } finally { http.get = get; auditoriasService.listarHistorico = listar; }
   assert.equal(respostaPerfil(false), "Não"); assert.equal(respostaPerfil(null), "Não informado");
