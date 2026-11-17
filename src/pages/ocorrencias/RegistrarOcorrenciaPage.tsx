@@ -53,6 +53,7 @@ export default function RegistrarOcorrenciaPage() {
     try {
       const o = await ocorrenciasService.registrar({ estudanteId: Number(estudante), descricao: descricao.trim(), ocorridaEm: `${data}:00` }, arquivo);
       window.dispatchEvent(new Event("portal:notifications-changed"));
+      try { localStorage.setItem("portal:ocorrencia-registrada", String(Date.now())); } catch { /* A consulta periódica mantém a atualização sem armazenamento local. */ }
       navigate(`/equipe/ocorrencias?id=${o.id}&registrada=1`, { replace: true });
     } catch (e) { setErro(mensagemErro(e)); }
     finally { operando.current = false; setSalvando(false); }
