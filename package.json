@@ -16,6 +16,7 @@
     "preview": "vite preview",
     "test:relatorios": "node scripts/test-relatorios.mjs",
     "test:auth": "node scripts/test-auth-session.mjs",
+    "test:rai": "node scripts/test-rai.mjs",
     "test:alertas-ocorrencia": "node scripts/test-alertas-ocorrencia.mjs",
     "test:email-destinatario": "node scripts/test-email-destinatario.mjs"
   },

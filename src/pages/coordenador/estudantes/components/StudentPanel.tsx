@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
 import { useAuth } from "../../../../hooks/useAuth";
-import { accessProfiles, canAccess } from "../../../../config/access";
+import { accessProfiles, canAccess, podeGerenciarFluxo } from "../../../../config/access";
 import { useEffect, useRef, useState } from "react";
 import Modal from "../../../../components/common/Modal";
 import LoadingState from "../../../../components/common/LoadingState";
@@ -27,10 +27,12 @@ export default function StudentPanel({ estudante, modo, onClose, onUpdate, onPer
   const [versao, setVersao] = useState(0);
   const pendente = useRef(false);
   useEffect(() => {
+    if (!podeGerenciarFluxo(usuario)) return;
     const controller = new AbortController(); let ativo = true;
     acompanhamentoEstudanteService.consultar(estudante.id, controller.signal).then(resposta => { if (ativo) setDados(resposta); }).catch(error => { if (ativo) setErro(mensagemErro(error)); }).finally(() => { if (ativo) setCarregando(false); });
     return () => { ativo = false; controller.abort(); };
-  }, [estudante.id, versao]);
+  }, [estudante.id, versao, usuario]);
+  if (!podeGerenciarFluxo(usuario)) return null;
   const atual = dados ? mapearEstudante(dados.estudante) : estudante;
   async function executar(acao: AcaoEstudante) {
     if (pendente.current || !dados || !acaoEstudantePermitida(atual, acao)) return;

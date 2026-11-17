@@ -1,4 +1,7 @@
 import axios from "axios";
+import { canAccess } from "../config/access";
+import { userSession } from "./sessionStorage";
+import type { Usuario } from "../types/auth";
 import { http } from "./http";
 import { auditoriasService } from "./auditoriasService";
 import { mapearDocumento, type PlanoResponse } from "./documentosService";
@@ -16,14 +19,15 @@ export function ordenarMaisRecentes<T extends { dataAtualizacao?: string | null;
   return [...registros].sort((a, b) => (b.dataAtualizacao || b.dataCriacao || "").localeCompare(a.dataAtualizacao || a.dataCriacao || "") || b.id - a.id);
 }
 export const perfilEstudanteService = {
-  async consultar(id: number, signal: AbortSignal): Promise<DadosPerfilEstudante> {
+  async consultar(id: number, signal: AbortSignal, usuario: Usuario | null = userSession.read()): Promise<DadosPerfilEstudante> {
     if (!Number.isSafeInteger(id) || id <= 0) throw new Error("O estudante informado não foi encontrado.");
+    const consultarHistorico = !!usuario && canAccess(usuario, "auditorias");
     const respostas = await Promise.allSettled([
       http.get<EstudanteResponse>(`/estudantes/${id}`, { signal }),
       http.get<PlanoAcaoPerfil[]>("/planos-acao", { signal }),
       http.get<PlanoResponse[]>(`/planos-educacionais/estudante/${id}`, { signal }),
       http.get<AdaptacaoEstudante[]>(`/adaptacoes-pedagogicas/estudante/${id}`, { signal }),
-      auditoriasService.listarHistorico(signal),
+      consultarHistorico ? auditoriasService.listarHistorico(signal) : Promise.resolve({ registros: [], total: 0 }),
     ] as const);
     if (respostas[0].status === "rejected") throw respostas[0].reason;
     const falhas: DadosPerfilEstudante["falhas"] = {};
@@ -40,6 +44,6 @@ export const perfilEstudanteService = {
         ? "Para consultar o histórico de alterações, entre novamente na sua conta."
         : "Não foi possível consultar o histórico de alterações. Tente atualizar os dados.";
     }
-    return { estudante: respostas[0].value.data, planos, documentos: [...planos.map(p => mapearDocumento(p, "PLANO_ACAO")), ...peis.map(p => mapearDocumento(p, "PEI"))].sort((a, b) => (b.dataAtualizacao || b.dataRegistro || "").localeCompare(a.dataAtualizacao || a.dataRegistro || "")), adaptacoes, historico, falhas };
+    return { estudante: respostas[0].value.data, historicoConsultado: consultarHistorico, peis, planos, documentos: [...planos.map(p => mapearDocumento(p, "PLANO_ACAO")), ...peis.map(p => mapearDocumento(p, "PEI"))].sort((a, b) => (b.dataAtualizacao || b.dataRegistro || "").localeCompare(a.dataAtualizacao || a.dataRegistro || "")), adaptacoes, historico, falhas };
   },
 };

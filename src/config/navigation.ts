@@ -17,7 +17,7 @@ const navigation: NavigationItem[] = [
   { label: "Início", slug: "dashboard", icon: "home" },
   {
     label: "Estudantes", slug: "estudantes", icon: "students", permission: "estudantes.consultar", children: [
-      { label: "Cadastro do estudante", slug: "cadastro-estudante", icon: "clipboard", permission: "anamnese" },
+      { label: "Cadastro do estudante", slug: "cadastro-estudante", icon: "clipboard", permission: "anamnese", profiles: ["COORDENADOR", "ADMINISTRADOR"] },
     ]
   },
   {

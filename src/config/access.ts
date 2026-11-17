@@ -34,3 +34,7 @@ export function canAccess(conta: PerfilUsuario | Usuario, permission: Permission
   const perfil = typeof conta === "string" ? conta : conta.perfil;
   return (accessProfiles[perfil].permissions as readonly Permission[]).includes(permission);
 }
+
+export function podeGerenciarFluxo(conta: Pick<Usuario, "perfil"> | null | undefined) {
+  return conta?.perfil === "COORDENADOR" || conta?.perfil === "ADMINISTRADOR";
+}

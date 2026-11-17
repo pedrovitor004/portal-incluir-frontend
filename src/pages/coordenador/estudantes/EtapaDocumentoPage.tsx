@@ -12,7 +12,7 @@ import { mensagemErro } from "../../../services/apiError";
 import type { EstudanteResponse } from "../../../types/estudante";
 import type { Documento } from "../../../types/documento";
 import StudentFlow from "./components/StudentFlow";
-import StudentExport from "./components/StudentExport";
+import RaiForm from "./components/RaiForm";
 import DocumentDetails from "../documentos/components/DocumentDetails";
 import Button from "../../../components/common/Button";
 import LoadingState from "../../../components/common/LoadingState";
@@ -113,7 +113,7 @@ function Conteudo({ id, etapa }: { id: number; etapa: "pei" | "rai" }) {
     </section>}
     {exibirFormularioPei && estudante && <PeiForm key={`${id}-${usuario?.id}-${peiId ?? "novo"}`} estudante={estudante} peiId={peiId} onSaved={salvo} onCancel={fecharFormulario} onBusyChange={setSalvandoPei} areaSolicitacoes={painelSolicitacoes} />}
     {!exibirFormularioPei && painelSolicitacoes}
-    {!carregando && estudante && etapa === "rai" && <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6"><div><h2 className="font-semibold text-slate-800">Emitir relatório acumulativo</h2><p className="mt-2 text-sm leading-6 text-slate-500">O RAI reúne a anamnese, os planos de ação, os PEIs e as adaptações salvas até a emissão. Você pode gerar uma nova versão conforme o acompanhamento avançar.</p></div><StudentExport estudanteId={id} tipo="rai" /></section>}
+    {!carregando && !erro && estudante && etapa === "rai" && <RaiForm key={`${id}-${usuario?.id}`} estudante={estudante} />}
     <div className="flex flex-wrap justify-between gap-3"><Link to={`${base}/${etapa === "pei" ? `plano-acao?estudanteId=${id}` : `estudantes/${id}/etapas/pei`}`} onClick={event => { if (salvandoPei) event.preventDefault(); }} aria-disabled={salvandoPei || undefined} className="text-sm font-semibold text-green-800 hover:underline">← {etapa === "pei" ? "Plano de ação" : "PEI"}</Link>{etapa === "pei" && <Button disabled={salvandoPei || encaminhando || carregando || !!erro} onClick={() => void avancar()}>{encaminhando ? "Encaminhando..." : "Continuar para RAI →"}</Button>}</div>
     <Modal open={selecionado !== null} onClose={() => setSelecionado(null)} title="PEI do estudante" size="wide">{selecionado && <DocumentDetails documento={selecionado} />}</Modal>
   </main>;

@@ -5,6 +5,7 @@ import type { PlanoAcaoRequest, PlanoAcaoResponse } from "../types/planoAcao";
 export type EtapaFluxo = "ANAMNESE" | "PLANO_ACAO" | "PEI";
 export type ResponsavelEtapa = { usuarioId: number; nome: string; perfil: string; permissoes: string[] };
 export type FluxoEstudante = {
+  periodosConcluidos?: { anoLetivo: string; periodicidade: string; numeroPeriodo: string; concluidoEm: string }[];
   estudanteId: number;
   anamneseStatus: "PENDENTE" | "RASCUNHO" | "CONCLUIDA";
   planoStatus?: "RASCUNHO" | "ASSINADO" | null;
