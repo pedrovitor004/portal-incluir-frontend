@@ -1,0 +1,43 @@
+import assert from "node:assert/strict";
+import { createServer } from "vite";
+
+const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
+try {
+  const { gestaoAcompanhamentoPreview: preview } = await server.ssrLoadModule("/src/services/gestaoAcompanhamentoPreview.ts");
+  const coordA = 90001, coordB = 90002;
+  let atualizacoes = 0;
+  const unsubscribe = preview.subscribe(() => atualizacoes++);
+  assert.equal(preview.consultar(coordA).demonstracao, false);
+  preview.iniciar(coordA);
+  const adaptacao = preview.consultar(coordA).registros.find(r => r.tipo === "adaptacao");
+  const atendimento = preview.consultar(coordA).registros.find(r => r.tipo === "atendimento");
+  assert(adaptacao && atendimento);
+  preview.salvar(coordA, { ...adaptacao, situacao: "Arquivado", conteudo: "Conteúdo revisado" });
+  const alterado = preview.consultar(coordA);
+  assert.equal(alterado.registros.find(r => r.id === adaptacao.id).situacao, "Arquivado");
+  assert.equal(alterado.registros.find(r => r.id === adaptacao.id).conteudo, "Conteúdo revisado", "Conteúdo e adaptação compartilham o mesmo registro");
+  assert.equal(alterado.registros.find(r => r.id === atendimento.id), atendimento, "Uma ação pedagógica não altera atendimentos");
+  assert.equal(alterado.avisos[0].destinatario, adaptacao.responsavel);
+  assert.equal(alterado.avisos[0].lido, false);
+  assert.deepEqual(preview.consultar(coordB).avisos, [], "As notificações não atravessam contas");
+  assert.deepEqual(preview.consultar(coordB).registros, []);
+  preview.notificar(coordA, adaptacao, "   ");
+  assert.equal(preview.consultar(coordA).avisos.length, 1, "Mensagens vazias não criam notificações");
+  preview.notificar(coordA, adaptacao, " Revisar os recursos utilizados. ");
+  assert.equal(preview.consultar(coordA).avisos[0].mensagem, "Revisar os recursos utilizados.");
+  preview.excluir(coordA, adaptacao);
+  assert(!preview.consultar(coordA).registros.some(r => r.id === adaptacao.id));
+  assert(preview.consultar(coordA).avisos[0].titulo.includes("excluído"));
+  preview.ler(coordA);
+  assert(preview.consultar(coordA).avisos.every(a => a.lido));
+  preview.vinculo(coordB, "Profissional teste", "Estudante teste", true, "Apoio em sala");
+  assert.equal(preview.consultar(coordB).demonstracao, false, "Um vínculo real não inicia registros fictícios");
+  assert.equal(preview.consultar(coordB).avisos.length, 1);
+  preview.limpar(coordA);
+  assert.equal(preview.consultar(coordA).registros.length, 0);
+  assert.equal(preview.consultar(coordA).avisos.length, 0);
+  assert.equal(preview.consultar(coordB).avisos.length, 1);
+  assert(atualizacoes > 0);
+  unsubscribe();
+  console.log("Gestão: isolamento entre contas, estados, conteúdo vinculado e prévias de notificações verificados.");
+} finally { await server.close(); }

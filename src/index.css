@@ -1,1 +1,25 @@
 @import "tailwindcss";
+
+@theme {
+	--color-primary: #38a34a;
+	--font-sans: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+:root {
+	color-scheme: light;
+}
+
+html,
+body,
+#root {
+	width: 100%;
+	min-height: 100%;
+}
+
+body {
+	margin: 0;
+	overflow-x: hidden;
+	font-family: var(--font-sans);
+	-webkit-font-smoothing: antialiased;
+	background: #f2f5ef;
+}

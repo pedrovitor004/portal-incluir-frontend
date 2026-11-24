@@ -1,0 +1,34 @@
+﻿import assert from 'node:assert/strict';
+import { createServer } from 'vite';
+import { AxiosError } from 'axios';
+const server = await createServer({ server: { middlewareMode: true } });
+try {
+  const { http } = await server.ssrLoadModule('/src/services/http.ts');
+  const { dataConsultation: state } = await server.ssrLoadModule('/src/services/dataConsultation.ts');
+  const pending = [];
+  http.defaults.adapter = config => new Promise((resolve, reject) => pending.push({ config, resolve, reject }));
+  const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+  const first = http.get('/first');
+  const second = http.get('/second').catch(error => error);
+  await tick();
+  assert.equal(state.getSnapshot(), true);
+  pending[0].resolve({ data: [], status: 200, statusText: 'OK', headers: {}, config: pending[0].config });
+  await first;
+  assert.equal(state.getSnapshot(), true);
+  pending[1].reject(new AxiosError('failed', 'ERR_NETWORK', pending[1].config));
+  await second;
+  assert.equal(state.getSnapshot(), false);
+  const controller = new AbortController();
+  const cancelled = http.get('/cancelled', { signal: controller.signal }).catch(error => error);
+  await tick();
+  controller.abort();
+  pending[2].resolve({ data: [], status: 200, statusText: 'OK', headers: {}, config: pending[2].config });
+  await cancelled;
+  assert.equal(state.getSnapshot(), false);
+  const save = http.post('/save');
+  await tick();
+  assert.equal(state.getSnapshot(), false);
+  pending[3].resolve({ data: [], status: 200, statusText: 'OK', headers: {}, config: pending[3].config });
+  await save;
+  console.log('Consultas simultâneas, erro, cancelamento e gravação: OK');
+} finally { await server.close(); }

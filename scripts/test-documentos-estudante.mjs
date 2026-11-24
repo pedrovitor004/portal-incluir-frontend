@@ -1,0 +1,42 @@
+import assert from "node:assert/strict";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createServer } from "vite";
+import { decode, encode } from "fast-png";
+const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
+try {
+  const { montarHistoricoEstudante, HistoricoIncompletoError, dataHistorico } = await server.ssrLoadModule("/src/services/historicoEstudante/historicoModel.ts");
+  const { criarPdfHistorico } = await server.ssrLoadModule("/src/services/historicoEstudante/historicoPdf.ts");
+  const { criarPdfDeclaracao } = await server.ssrLoadModule("/src/services/historicoEstudante/declaracaoPdf.ts");
+  const estudante = { id: 7, nomeCompleto: "Estudante de Teste da Silva", matricula: "202600007", curso: "Análise e Desenvolvimento de Sistemas", periodoIngresso: "2024.1", dataNascimento: "2000-01-01", telefone: "Não informado", email: "estudante@example.test", nomeResponsavel: "Responsável de teste", ativo: true, concluido: false, possuiNecessidadeEspecifica: true, necessidadesEspecificas: ["TDAH"], condicoesAssociadas: [], atendimentosCampus: [], acessibilidadesFisicas: [], possuiOutraNecessidadeAtendimento: false };
+  const longo = "Orientação pedagógica de teste: apresentar atividades por etapas, com acompanhamento da equipe e revisão do planejamento. ".repeat(28);
+  const plano = { id: 3, estudanteId: 7, periodoLetivo: "2026.2", status: "RASCUNHO", arquivado: true, possuiComorbidade: false, dataCriacao: "2026-10-01T09:15:30", principaisDemandas: longo, propostasIntervencao: "PROPOSTA-FINAL-DO-PLANO" };
+  const documento = { chave: "PEI-4", id: 4, tipo: "PEI", nome: "PEI", estudanteId: 7, periodo: "2026.2", status: "Arquivado", arquivado: true, dataRegistro: "2026-10-02T10:25:12", dataAtualizacao: "2026-10-03T11:45:01", detalhes: [{ titulo: "Metodologia", valor: longo }] };
+  const adaptacao = { id: 5, estudanteId: 7, componenteCurricular: "Algoritmos", professorNome: "Professor(a) de teste", semestreAno: "2026.2", arquivado: true, dataCriacao: "2026-10-03T10:12:33", dataAtualizacao: "2026-10-04T11:23:45", metodologia: longo, avaliacao: "AVALIACAO-FINAL-DA-ADAPTACAO" };
+  const historico = Array.from({ length: 8 }, (_, i) => ({ tabela: "adaptacoes_pedagogicas_aud", identidade: { id: 5 }, revisao: 50 + i, data: `2026-10-${String(10 + i).padStart(2,"0")}T15:23:45Z`, operacao: i === 7 ? "DEL" : "MOD", detalhes: { anteriorDisponivel: true, antes: { estudante_id: 7, metodologia: `ANTES-${i}: ${longo}`, ativo: false }, depois: i === 7 ? null : { estudante_id: 7, metodologia: `DEPOIS-${i}: ${longo}`, ativo: true }, camposAlterados: { metodologia: { antes: `ANTES-${i}: ${longo}`, depois: i === 7 ? null : `DEPOIS-${i}: ${longo}` } } } }));
+  const dados = { estudante, planos: [plano], documentos: [documento], adaptacoes: [adaptacao], historico, falhas: {} };
+  assert.throws(() => montarHistoricoEstudante({ ...dados, falhas: { historico: "Entre novamente na conta." } }, "2026-10-21T15:30:00Z", "Coordenação de teste"), HistoricoIncompletoError);
+  const modelo = montarHistoricoEstudante(dados, "2026-10-21T15:30:00Z", "Coordenação de teste");
+  assert.equal(modelo.alteracoes.length, 8);
+  assert(modelo.alteracoes.at(-1).campos.some(c => c[2] === "Registro excluído"));
+  assert(modelo.alteracoes[0].campos.some(c => c[0] === "Ativo" && c[1] === "Não" && c[2] === "Sim"));
+  assert(modelo.secoes.some(s => s.campos.some(c => c[1] === "AVALIACAO-FINAL-DA-ADAPTACAO")));
+  assert.match(dataHistorico("2026-10-21T15:23:45Z"), /12:23:45/);
+  assert.match(dataHistorico("2026-10-21"), /horário não informado/);
+  assert.match(dataHistorico("2026-10-21T09:10:11"), /09:10:11/);
+  const png = async nome => `data:image/png;base64,${(await readFile(`src/assets/logos/${nome}`)).toString("base64")}`;
+  const portal = decode(await readFile("src/assets/logos/logo-portal.png"));
+  assert.equal(portal.channels, 4);
+  for (let i = 0; i < portal.data.length; i += 4) { portal.data[i] = 40; portal.data[i+1] = 117; portal.data[i+2] = 53; }
+  const marcas = { ifpb: await png("logo-ifpb.png"), clai: await png("logo-clai.png"), portal: `data:image/png;base64,${Buffer.from(encode(portal)).toString("base64")}` };
+  const pdf = criarPdfHistorico(modelo, marcas);
+  assert(pdf.getNumberOfPages() > 3);
+  const declaracao = { estudante, periodo: "2026.2", emitidoEm: "2026-10-21T15:30:00Z", emitidoPor: "Coordenação de teste" };
+  assert.throws(() => criarPdfDeclaracao({ ...declaracao, periodo: "" }), /período/);
+  assert.equal(criarPdfDeclaracao({ ...declaracao, estudante: { ...estudante, ativo: false } }).getNumberOfPages(), 1, "A declaração deve contemplar acompanhamentos já realizados");
+  const declaracaoPdf = criarPdfDeclaracao(declaracao, marcas);
+  assert.equal(declaracaoPdf.getNumberOfPages(), 1);
+  await mkdir("tmp/pdfs", { recursive: true });
+  await writeFile("tmp/pdfs/historico-estudante-teste.pdf", Buffer.from(pdf.output("arraybuffer")));
+  await writeFile("tmp/pdfs/declaracao-estudante-teste.pdf", Buffer.from(declaracaoPdf.output("arraybuffer")));
+  console.log(`Documentos: histórico com ${pdf.getNumberOfPages()} páginas e declaração com 1 página. Registros acumulados, exclusões, horários e bloqueio de dados incompletos verificados.`);
+} finally { await server.close(); }

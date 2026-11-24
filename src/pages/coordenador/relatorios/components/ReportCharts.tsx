@@ -1,0 +1,27 @@
+import { useState } from "react";
+import type { BaseRelatorio, FiltrosRelatorio } from "../../../../types/relatorio";
+import { filtrarEstudantes, consolidar } from "../../../../services/relatorios/relatorioModel";
+import Button from "../../../../components/common/Button";
+import ReportIcon from "./ReportIcon";
+type Props = { base: BaseRelatorio; filtros: FiltrosRelatorio; onChange: (f: FiltrosRelatorio) => void; disabled: boolean; onVerTabela: () => void };
+export default function ReportCharts({ base, filtros, onChange, disabled, onVerTabela }: Props) {
+  const [visao, setVisao] = useState<"curso" | "situacao">("curso");
+  const estudantes = filtrarEstudantes(base, { ...filtros, [visao]: "" });
+  const itens = visao === "curso" ? consolidar(estudantes).map(l => ({ nome: l.curso, valor: l.total })) : ["Ativo", "Inativo"].map(nome => ({ nome, valor: estudantes.filter(e => e.situacao === nome).length }));
+  const total = itens.reduce((s,i) => s+i.valor,0);
+  const filtrosAtivos = [
+    { campo: "curso", titulo: "Curso", valor: filtros.curso },
+    { campo: "ingresso", titulo: "Ingresso", valor: filtros.ingresso },
+    { campo: "situacao", titulo: "Situação", valor: filtros.situacao },
+    { campo: "documento", titulo: "Documento", valor: { pei: "Com PEI", plano: "Com plano de ação", sem: "Sem PEI e plano" }[filtros.documento] || "" },
+  ] as const;
+  return <div className="p-5 sm:p-6">
+    <div className="flex flex-wrap items-center justify-between gap-4"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50 text-primary"><ReportIcon name="grafico" className="h-6 w-6" /></span><div><h3 className="font-semibold text-slate-800">Distribuição dos estudantes</h3><p className="mt-1 text-xs text-slate-500">Selecione uma barra para filtrar os dados.</p></div></div><div role="group" aria-label="Agrupar gráfico" className="flex flex-wrap gap-2"><Button variant={visao === "curso" ? "soft" : "secondary"} aria-pressed={visao === "curso"} onClick={() => setVisao("curso")} icon={<ReportIcon name="curso" />}>Por curso</Button><Button variant={visao === "situacao" ? "soft" : "secondary"} aria-pressed={visao === "situacao"} onClick={() => setVisao("situacao")} icon={<ReportIcon name="situacao" />}>Por situação</Button></div></div>
+    <div className="mt-5 flex flex-wrap items-center gap-2 rounded-xl bg-[#f5f8f4] p-3" aria-label="Filtros ativos do gráfico"><ReportIcon name="filtro" className="h-4 w-4 text-green-800" />{filtrosAtivos.some(f => f.valor) ? filtrosAtivos.filter(f => f.valor).map(f => <button key={f.campo} type="button" disabled={disabled} onClick={() => onChange({ ...filtros, [f.campo]: "" })} aria-label={`Remover filtro ${f.titulo}: ${f.valor}`} className="inline-flex min-h-9 max-w-full items-center gap-2 rounded-lg border border-green-200 bg-white px-3 py-2 text-xs text-green-800 hover:bg-green-50"><span className="break-words">{f.titulo}: {f.valor}</span><ReportIcon name="fechar" className="h-3 w-3 shrink-0" /></button>) : <span className="text-xs text-slate-500">Todos os estudantes da consulta</span>}</div>
+    <div className="mt-6 max-h-96 space-y-3 overflow-y-auto pr-1" aria-label={visao === "curso" ? "Gráfico por curso" : "Gráfico por situação"}>
+      {itens.map((item,i) => { const selecionado = filtros[visao] === item.nome; const percentual = total ? item.valor / total * 100 : 0; return <button key={item.nome} type="button" disabled={disabled} aria-pressed={selecionado} aria-label={`${item.nome}: ${item.valor} estudante(s), ${percentual.toLocaleString("pt-BR", {maximumFractionDigits:1})}% desta distribuição. ${selecionado ? "Remover filtro" : "Filtrar"}`} onClick={() => onChange({ ...filtros, [visao]: selecionado ? "" : item.nome })} className={`group block w-full rounded-xl border p-4 text-left transition focus-visible:outline-2 focus-visible:outline-primary ${selecionado ? "border-green-300 bg-green-50" : "border-slate-100 bg-white hover:border-green-200 hover:bg-green-50/40"} disabled:opacity-60`}><span className="mb-3 flex items-start justify-between gap-3"><span className="flex min-w-0 items-start gap-2 text-sm font-medium text-slate-700"><ReportIcon name={selecionado ? "check" : visao} className="mt-0.5 h-4 w-4 shrink-0 text-green-700" /><span className="break-words">{item.nome}</span></span><span className="shrink-0 text-right"><span className="text-lg font-semibold tabular-nums text-slate-800">{item.valor}</span><span className="ml-2 text-xs tabular-nums text-slate-500">{percentual.toLocaleString("pt-BR", {maximumFractionDigits:1})}%</span></span></span><span aria-hidden="true" className="block h-3 overflow-hidden rounded-full bg-slate-100"><span style={{ width: `${percentual}%` }} className={`block h-full rounded-full transition-[width] duration-200 motion-reduce:transition-none ${visao === "situacao" && i === 1 ? "bg-amber-500" : "bg-primary"}`} /></span></button>; })}
+      {!total && <p role="status" className="py-8 text-center text-sm text-slate-500">Nenhum estudante neste recorte. Remova um filtro para ampliar a consulta.</p>}
+    </div>
+    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4"><p className="max-w-lg text-xs leading-relaxed text-slate-500">Percentuais sobre os estudantes desta distribuição. O agrupamento selecionado permanece completo para permitir a comparação.</p><Button variant="secondary" onClick={onVerTabela} icon={<ReportIcon name="tabela" />}>Ver dados na tabela</Button></div>
+  </div>;
+}

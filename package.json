@@ -4,16 +4,36 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test:solicitacoes-pea": "node scripts/test-solicitacoes-pea.mjs",
+    "test:notificacoes": "node scripts/test-notificacoes.mjs",
+    "test:encaminhamento": "node scripts/test-encaminhamento-fluxo.mjs",
+    "test:fluxo": "node scripts/test-fluxo-estudante.mjs",
+    "test:documentos": "node scripts/test-documentos.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "test:acesso": "node scripts/test-politica-acesso.mjs",
+    "preview": "vite preview",
+    "test:relatorios": "node scripts/test-relatorios.mjs",
+    "test:auth": "node scripts/test-auth-session.mjs",
+    "test:rai": "node scripts/test-rai.mjs",
+    "test:alertas-ocorrencia": "node scripts/test-alertas-ocorrencia.mjs",
+    "test:email-destinatario": "node scripts/test-email-destinatario.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "ag-grid-community": "^36.2.0",
+    "ag-grid-react": "^36.2.0",
+    "axios": "^1.20.0",
+    "docx": "^9.15.1",
+    "exceljs": "^4.4.0",
+    "fflate": "^0.8.3",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^7.18.4",
+    "sweetalert2": "^11.26.25",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
@@ -22,6 +42,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "@xmldom/xmldom": "^0.9.12",
     "eslint": "^10.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",
@@ -29,5 +50,10 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.69.0",
     "vite": "^8.3.0"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "^11.1.1"
+    }
   }
 }

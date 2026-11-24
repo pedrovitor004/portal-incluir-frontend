@@ -1,0 +1,31 @@
+﻿import assert from 'node:assert/strict';
+import { createServer } from 'vite';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router';
+const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
+try {
+  const { default: Lista } = await server.ssrLoadModule('/src/components/notifications/NotificationsList.tsx');
+  const { RequestStatus } = await server.ssrLoadModule('/src/components/notifications/accessRequestPresentation.tsx');
+  const { dataPedido } = await server.ssrLoadModule('/src/components/notifications/accessRequestDate.ts');
+  const usuario = { id: 1, nome: 'Analista', perfil: 'COORDENADOR' };
+  const base = { usuario, avisos: [], solicitacoes: [], erro: '', carregando: false, ler: async () => {}, atualizar: () => {} };
+  const render = dados => renderToStaticMarkup(createElement(MemoryRouter, null, createElement(Lista, { dados: { ...base, ...dados } })));
+  assert.match(render({}), /Tudo em dia/);
+  assert.doesNotMatch(render({carregando:true}), /Tudo em dia/);
+  assert.match(render({erro:'Consulta indisponível'}), /role="alert"/);
+  const aviso = { id: 1, estudanteId: 9, estudanteNome: '<script>teste</script>', etapa: 'PEI', remetente:'Equipe', mensagem:'Revisar objetivos', criadaEm:'2026-10-29T10:00:00Z', lida:false };
+  const html = render({ avisos: [aviso] });
+  assert.match(html, /Nova/);
+  assert.match(html, /Marcar como lida/);
+  assert.match(html, /estudantes\/9\/etapas\/pei/);
+  assert.doesNotMatch(html, /<script>/);
+  assert.doesNotMatch(render({avisos:[{...aviso,lida:true}]}), /Marcar como lida/);
+  const pedido = {id:7, nome:'Pessoa', tipo:'ADMINISTRACAO',status:'PENDENTE',atrasada:true,diasPendente:3};
+  assert.match(render({solicitacoes:[pedido]}), /solicitacoes\?pedido=7/);
+  assert.match(render({solicitacoes:[pedido]}), /Acesso administrativo/);
+  assert.match(renderToStaticMarkup(createElement(RequestStatus,{pedido})), /Prazo ultrapassado/);
+  assert.doesNotMatch(renderToStaticMarkup(createElement(RequestStatus,{pedido:{...pedido,status:'APROVADA'}})), /Prazo ultrapassado/);
+  assert.equal(dataPedido('inválida'), 'Não informada');
+  console.log('Notificações: estados vazio, carregando e erro; mensagens lidas e pendentes; destinos; escape de conteúdo; tipos de acesso e prazos verificados.');
+} finally { await server.close(); }

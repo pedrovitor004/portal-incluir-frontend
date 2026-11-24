@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'tmp']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -16,6 +16,7 @@ export default defineConfig([
       reactRefresh.configs.vite,
     ],
     languageOptions: {
+      parserOptions: { tsconfigRootDir: import.meta.dirname },
       globals: globals.browser,
     },
   },

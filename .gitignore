@@ -25,3 +25,15 @@ dist-ssr
 .env
 .env.*
 !.env.example
+# C�pia tempor�ria usada para validar o backend
+/tmp/backend-check/
+
+# PDFs e imagens gerados nas verificações locais
+/tmp/pdfs/
+
+/tmp/backend-fluxo/
+/tmp/backend-fluxo-check/
+/tmp/backend-encaminhamento/
+/tmp/backend-stateful/
+
+/tmp/rai-backend/

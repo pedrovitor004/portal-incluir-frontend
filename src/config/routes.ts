@@ -1,0 +1,29 @@
+import { accessProfiles } from "./access";
+import type { Usuario } from "../types/auth";
+
+export const routes = {
+  login: "/login",
+  recuperarSenha: "/recuperar-senha",
+  redefinirSenha: "/redefinir-senha",
+  register: "/register",
+  home: "/",
+  lgpd: "/recursos/lgpd",
+  legislacao: "/recursos/legislacao",
+  dashboardProfessor: "/professor/dashboard",
+  cadastroPeaProfessor: "/professor/adaptacoes",
+  conteudoAcademicoProfessor: "/professor/conteudo-academico",
+  solicitacoesPeaProfessor: "/professor/documentos/solicitacoes-pea",
+  dashboardEquipeMultidisciplinar: "/equipe/dashboard",
+  dashboardCoordenador: "/coordenador/dashboard",
+  estudantesCoordenador: "/coordenador/estudantes",
+  anamneseCoordenador: "/coordenador/anamnese",
+  perfilEstudante: "/coordenador/estudantes/:id",
+  planoAcaoCoordenador: "/coordenador/plano-acao",
+  relatoriosCoordenador: "/coordenador/relatorios",
+  documentosCoordenador: "/coordenador/documentos",
+  auditoriasCoordenador: "/coordenador/administracao/auditorias",
+} as const;
+
+export function destinoUsuario(usuario: Usuario) {
+  return `${accessProfiles[usuario.perfil].basePath}/dashboard`;
+}
